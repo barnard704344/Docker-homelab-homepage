@@ -144,6 +144,11 @@
       margin-bottom: 8px;
     }
     
+    .card-header img {
+      flex-shrink: 0;
+      border-radius: 2px;
+    }
+    
     .card-title {
       font-weight: 600;
       color: var(--fg);
@@ -351,7 +356,7 @@
         const domain = new URL(url).hostname;
         return `https://www.google.com/s2/favicons?domain=${domain}&sz=16`;
       } catch {
-        return 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="%23666"/></svg>';
+        return '';
       }
     }
 
@@ -379,10 +384,11 @@
       card.className = 'card';
       
       const isPinned = getPins().includes(link.title);
+      const faviconUrl = getFaviconUrl(link.url);
       
       card.innerHTML = `
         <div class="card-header">
-          <img src="${getFaviconUrl(link.url)}" width="16" height="16" alt="" onerror="this.style.display='none'">
+          ${faviconUrl ? `<img src="${faviconUrl}" width="16" height="16" alt="" style="display: inline-block;" onerror="this.style.display='none'">` : '<span style="width:16px;height:16px;display:inline-block;"></span>'}
           <a href="${link.url}" class="card-title" target="_blank" rel="noopener">${escapeHtml(link.title)}</a>
           <div class="status-dot" data-url="${link.url}" data-path="${link.statusPath}"></div>
         </div>
@@ -496,6 +502,17 @@
       const path = dot.dataset.path || '/';
       
       try {
+        // For local files (starting with /), use a different approach
+        if (url.startsWith('/')) {
+          const response = await fetch(url, {
+            method: 'HEAD',
+            cache: 'no-cache'
+          });
+          dot.className = response.ok ? 'status-dot online' : 'status-dot offline';
+          return;
+        }
+        
+        // For external URLs
         const checkUrl = new URL(path, url).toString();
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
