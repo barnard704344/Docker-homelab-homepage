@@ -1,25 +1,31 @@
+# ---- base image with nginx + nmap ----
 FROM alpine:3.20
 
-RUN apk add --no-cache nginx nmap bind-tools jq bash curl tzdata
+# Install nginx, nmap, bash, curl (useful for debugging)
+RUN apk add --no-cache nginx nmap bash curl
 
-WORKDIR /var/www
-RUN mkdir -p /var/www/site /run/nginx
+# Create web root and app dir
+RUN mkdir -p /var/www/site /app /run/nginx
 
-COPY nginx.conf /etc/nginx/http.d/default.conf
-COPY scan.sh /app/scan.sh
-COPY run.sh /app/run.sh
-COPY ports.map /app/ports.map
-RUN chmod +x /app/scan.sh /app/run.sh
-
+# Copy website
+# Assumes your repo has site/index.html etc.
 COPY site/ /var/www/site/
 
-ENV SUBNETS=""
-ENV PORTS="80,443,8006,8080,8443,32400,9090,9093,9000,3000,3001,32168,8123,5601,9200"
-ENV DNS_SERVER=""
-ENV SEARCH_DOMAINS=""
-ENV HOSTNAMES=""
-ENV INTERVAL="600"
-ENV USE_TLS_MAP="true"
+# Copy nginx config
+COPY nginx.conf /etc/nginx/nginx.conf
 
-EXPOSE 8080
-ENTRYPOINT ["/app/run.sh"]
+# Copy scripts into image
+COPY scan.sh /app/scan.sh
+COPY start.sh /app/start.sh
+
+# Make scripts executable
+RUN chmod +x /app/scan.sh /app/start.sh
+
+# Expose HTTP (informational; not used when --network host)
+EXPOSE 80
+
+# Healthcheck: try to hit localhost
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD curl -fsS http://127.0.0.1/ || exit 1
+
+# Start script will optionally run scans and then start nginx in foreground
+CMD ["/app/start.sh"]
