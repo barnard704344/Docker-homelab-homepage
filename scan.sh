@@ -29,12 +29,28 @@ for NET in ${SUBNETS}; do
     echo
     echo ">>> Subnet: ${NET}"
     echo "---------------------"
+    echo "Testing network connectivity..."
+    
+    # Test basic connectivity first
+    if ping -c 1 -W 5 $(echo ${NET} | cut -d'/' -f1 | sed 's/0$/1/') >/dev/null 2>&1; then
+      echo "Network appears reachable"
+    else
+      echo "Warning: Network may not be reachable"
+    fi
+    
+    echo "Starting nmap scan..."
   } >> "${OUTFILE}"
 
-  # Basic TCP scan; add -sV if you want service versions (slower)
-  if ! nmap -T4 -Pn "${NET}" >> "${OUTFILE}" 2>&1; then
-    echo "[!] nmap failed for ${NET}" >> "${OUTFILE}"
+  # Basic TCP scan with faster timing and reduced port range for testing
+  # Use -T4 (aggressive timing), -F (fast scan - top 100 ports), --host-timeout for faster results
+  if ! timeout 300 nmap -T4 -F -Pn --host-timeout 60s "${NET}" >> "${OUTFILE}" 2>&1; then
+    echo "[!] nmap failed or timed out for ${NET}" >> "${OUTFILE}"
   fi
+  
+  {
+    echo "Scan completed for ${NET}"
+    echo
+  } >> "${OUTFILE}"
 done
 
 echo >> "${OUTFILE}"
