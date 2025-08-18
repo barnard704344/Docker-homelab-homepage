@@ -22,13 +22,14 @@ if (!file_exists($scanScript)) {
 }
 
 // Execute the scan script in the background
+// The scan script will automatically run the parser when complete
 $command = "nohup $scanScript > /dev/null 2>&1 &";
 $result = shell_exec($command);
 
 // Return success response
 echo json_encode([
     'status' => 'started',
-    'message' => 'Network scan has been initiated',
+    'message' => 'Network scan has been initiated - services will be auto-discovered',
     'timestamp' => date('c')
 ]);
 ?>

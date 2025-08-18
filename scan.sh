@@ -60,3 +60,7 @@ echo "Done." >> "${OUTFILE}"
 ln -sf "${OUTFILE}" /var/www/site/scan.txt
 
 echo "[scanner] OK: wrote ${OUTFILE}"
+
+# Parse scan results for service discovery
+echo "[scanner] Parsing scan results for service discovery..."
+/app/parse-scan.sh || echo "[scanner] WARNING: service discovery failed (non-fatal)"

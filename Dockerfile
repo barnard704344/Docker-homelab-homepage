@@ -1,8 +1,8 @@
 # ---- base image with nginx + nmap + php ----
 FROM alpine:3.20
 
-# Install nginx, nmap, bash, curl, php-fpm
-RUN apk add --no-cache nginx nmap bash curl php82-fpm php82-json php82-session
+# Install nginx, nmap, bash, curl, php-fpm, jq
+RUN apk add --no-cache nginx nmap bash curl php82-fpm php82-json php82-session jq
 
 # Create web root and app dir
 RUN mkdir -p /var/www/site /app /run/nginx /run/php
@@ -16,10 +16,11 @@ COPY nginx.conf /etc/nginx/nginx.conf
 
 # Copy scripts into image
 COPY scan.sh /app/scan.sh
+COPY parse-scan.sh /app/parse-scan.sh
 COPY start.sh /app/start.sh
 
 # Make scripts executable and create symlink for easier access
-RUN chmod +x /app/scan.sh /app/start.sh && \
+RUN chmod +x /app/scan.sh /app/parse-scan.sh /app/start.sh && \
     ln -sf /app/scan.sh /opt/scan.sh
 
 # Configure PHP-FPM
