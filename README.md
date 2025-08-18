@@ -49,24 +49,34 @@ cd Docker-homelab-homepage
 docker build -t homelab-homepage .
 ```
 
-### 3) Run (publish to host port 8080)
+### 3) Run (with host networking for network scanning)
 Stop/remove any existing container:
 ```bash
 docker stop homelab-homepage 2>/dev/null || true
 docker rm   homelab-homepage 2>/dev/null || true
 ```
 
-Run with a single subnet and **scheduled scans every 10 minutes**:
+Run with host networking to enable network scanning:
 ```bash
-docker run -d   --name homelab-homepage   -p 8080:80   -e SUBNETS="192.168.1.0/24"   -e SCAN_INTERVAL=10   homelab-homepage
+docker run -d \
+  --name homelab-homepage \
+  --network host \
+  -e SUBNETS="192.168.1.0/24" \
+  -e SCAN_INTERVAL=10 \
+  homelab-homepage
 ```
 
-> Access: `http://<HOST_LAN_IP>:8080/` (e.g., `http://192.168.1.20:8080/`)
+> Access: `http://<HOST_LAN_IP>:80/` (e.g., `http://192.168.1.20/`) - Note: Port 80 when using host networking
 
 #### Alternatives
-- **Single scan at startup only** (no schedule):
+- **Port mapping instead of host networking** (network scanning may not work):
   ```bash
-  docker run -d     --name homelab-homepage     -p 8080:80     -e SUBNETS="192.168.1.0/24"     -e RUN_SCAN_ON_START=1     homelab-homepage
+  docker run -d \
+    --name homelab-homepage \
+    -p 8080:80 \
+    -e SUBNETS="192.168.1.0/24" \
+    -e RUN_SCAN_ON_START=1 \
+    homelab-homepage
   ```
 - **Multiple subnets**:
   ```bash
@@ -143,10 +153,10 @@ docker stop homelab-homepage 2>/dev/null || true
 docker rm homelab-homepage 2>/dev/null || true
 docker build -t homelab-homepage .
 
-# Restart with your preferred configuration
+# Restart with your preferred configuration (host networking recommended)
 docker run -d \
   --name homelab-homepage \
-  -p 8080:80 \
+  --network host \
   -e SUBNETS="192.168.1.0/24" \
   -e SCAN_INTERVAL=10 \
   homelab-homepage
@@ -162,7 +172,7 @@ cd /path/to/Docker-homelab-homepage
 docker stop homelab-homepage 2>/dev/null || true
 docker rm homelab-homepage 2>/dev/null || true
 docker build -t homelab-homepage .
-docker run -d --name homelab-homepage -p 8080:80 -e SUBNETS="192.168.1.0/24" homelab-homepage
+docker run -d --name homelab-homepage --network host -e SUBNETS="192.168.1.0/24" homelab-homepage
 ```
 
 ### Quick Rebuild Script
@@ -179,7 +189,7 @@ docker build -t homelab-homepage .
 echo "Starting new container..."
 docker run -d \
   --name homelab-homepage \
-  -p 8080:80 \
+  --network host \
   -e SUBNETS="192.168.1.0/24" \
   -e SCAN_INTERVAL=10 \
   homelab-homepage
@@ -214,8 +224,9 @@ Update run command to include your preferred `SUBNETS`, `RUN_SCAN_ON_START`, or 
 ---
 
 ## 🌐 Access
-- Host: [http://localhost:8080](http://localhost:8080)
-- LAN: `http://<HOST_LAN_IP>:8080/` (e.g., `http://192.168.1.20:8080/`)
+- Host: [http://localhost](http://localhost) (when using --network host)
+- LAN: `http://<HOST_LAN_IP>/` (e.g., `http://192.168.1.20/`)
+- Alternative with port mapping: `http://<HOST_LAN_IP>:8080/`
 
 ---
 
