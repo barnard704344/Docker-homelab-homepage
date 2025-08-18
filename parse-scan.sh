@@ -65,7 +65,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
             current_host="$display_name"
             current_ip="$ip"
             current_ports=()
-            echo "[discovery] Processing: $display_name ($ip)"
+            echo "[discovery] Processing named host: $display_name ($ip)"
         else
             current_host=""
             current_ip=""
@@ -80,10 +80,12 @@ while IFS= read -r line || [[ -n "$line" ]]; do
             echo "[discovery] Saved: $current_host ($current_ip) - Ports: $ports_str"
         fi
         
-        # IP-only hosts - skip
-        current_host=""
-        current_ip=""
+        # IP-only host - we'll include it if it has web services
+        ip="${BASH_REMATCH[1]}"
+        current_host="$ip"  # Use IP as the display name
+        current_ip="$ip"
         current_ports=()
+        echo "[discovery] Processing IP-only host: $ip"
         
     elif [[ -n "$current_host" ]] && [[ $line =~ ^([0-9]+)/tcp[[:space:]]+open[[:space:]]+([^[:space:]]+) ]]; then
         # Found an open port for current host
@@ -175,6 +177,27 @@ echo "[discovery] Creating JSON file..."
         # Simple JSON entry - escape quotes in names
         escaped_name=$(echo "$name" | sed 's/"/\\"/g')
         escaped_desc=$(echo "$description" | sed 's/"/\\"/g')
+        
+        # For IP-only hosts, use a more descriptive title
+        if [[ "$name" =~ ^[0-9.]+$ ]]; then
+            # This is an IP-only host, make the title more descriptive
+            if [[ -n "$ports" ]]; then
+                # Use the first service type for a better title
+                IFS=',' read -ra port_array <<< "$ports"
+                first_port_info="${port_array[0]}"
+                IFS='/' read -r first_port first_service <<< "$first_port_info"
+                
+                case $first_service in
+                    http*) service_type="Web Server" ;;
+                    https*) service_type="Secure Web Server" ;;
+                    *) service_type="Service" ;;
+                esac
+                
+                escaped_name="$service_type ($name)"
+            else
+                escaped_name="Device ($name)"
+            fi
+        fi
         
         printf '  {\n    "title": "%s",\n    "url": "%s",\n    "group": "Discovered",\n    "desc": "%s",\n    "tags": ["discovered", "nmap"]\n  }' "$escaped_name" "$primary_url" "$escaped_desc"
     done
