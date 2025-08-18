@@ -1,10 +1,25 @@
 <?php
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST');
+header('Access-Control-Allow-Methods: POST, GET');
 header('Access-Control-Allow-Headers: Content-Type');
 
-// Only allow POST requests
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    // Debug endpoint to check if services.json exists
+    $servicesFile = '/var/www/site/services.json';
+    $scanFile = '/var/www/site/scan/last-scan.txt';
+    
+    echo json_encode([
+        'services_exists' => file_exists($servicesFile),
+        'services_size' => file_exists($servicesFile) ? filesize($servicesFile) : 0,
+        'scan_exists' => file_exists($scanFile),
+        'scan_size' => file_exists($scanFile) ? filesize($scanFile) : 0,
+        'services_content' => file_exists($servicesFile) ? file_get_contents($servicesFile) : null
+    ]);
+    exit;
+}
+
+// Only allow POST requests for scanning
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['error' => 'Method not allowed']);

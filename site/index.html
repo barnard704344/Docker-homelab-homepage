@@ -253,6 +253,7 @@
       <button class="btn" id="toggle-pins">📌 Pinned</button>
       <button class="btn" id="refresh">🔄 Refresh</button>
       <button class="btn" id="run-scan">🔍 Run Scan</button>
+      <button class="btn" id="debug-services">🔧 Debug</button>
     </div>
     
     <div id="grid" class="grid" aria-live="polite"></div>
@@ -281,17 +282,20 @@
     const togglePinsBtn = document.getElementById('toggle-pins');
     const refreshBtn = document.getElementById('refresh');
     const runScanBtn = document.getElementById('run-scan');
+    const debugBtn = document.getElementById('debug-services');
     
     let showingPinnedOnly = false;
 
     // --- Load dynamic links from services.json
     async function loadDynamicLinks() {
       try {
+        console.log('Loading dynamic links from services.json...');
         const res = await fetch('services.json?ts=' + Date.now(), { cache: 'no-store' });
-        if (!res.ok) throw new Error('no manifest');
+        if (!res.ok) throw new Error(`HTTP ${res.status}: no manifest`);
         const data = await res.json();
         const incoming = Array.isArray(data) ? data : (Array.isArray(data.links) ? data.links : []);
         DYNAMIC_LINKS = sanitizeLinks(incoming);
+        console.log(`Loaded ${DYNAMIC_LINKS.length} dynamic links:`, DYNAMIC_LINKS);
       } catch (err) {
         console.log('Could not load services.json:', err.message);
         DYNAMIC_LINKS = [];
@@ -451,12 +455,16 @@
       const term = (search.value || '').trim().toLowerCase();
       let links = mergedLinks();
 
+      console.log(`Rendering with ${links.length} total links, search term: "${term}"`);
+
       // Filter by search term
       if (term) {
+        const originalCount = links.length;
         links = links.filter(link =>
           (link.title || '').toLowerCase().includes(term) ||
           (link.desc || '').toLowerCase().includes(term) ||
           (link.tags || []).join(',').toLowerCase().includes(term) ||
+          (link.group || '').toLowerCase().includes(term) ||
           (() => {
             try {
               return new URL(link.url).hostname.toLowerCase().includes(term);
@@ -465,12 +473,14 @@
             }
           })()
         );
+        console.log(`Search filtered from ${originalCount} to ${links.length} links`);
       }
 
       // Filter by pinned if active
       if (showingPinnedOnly) {
         const pins = new Set(getPins());
         links = links.filter(link => pins.has(link.title));
+        console.log(`Pin filter applied, showing ${links.length} pinned links`);
       }
 
       const groups = groupsFromLinks(links);
@@ -481,6 +491,7 @@
       }
       
       for (const [name, groupLinks] of groups) {
+        console.log(`Rendering group "${name}" with ${groupLinks.length} links`);
         grid.appendChild(groupPanel(name, groupLinks));
       }
       
@@ -582,6 +593,30 @@
           runScanBtn.textContent = '🔍 Run Scan';
           runScanBtn.disabled = false;
         }, 3000);
+      }
+    });
+
+    debugBtn.addEventListener('click', async () => {
+      try {
+        const response = await fetch('/run-scan', { method: 'GET' });
+        const data = await response.json();
+        
+        console.log('Debug Info:', data);
+        alert(`Debug Info:
+Services file exists: ${data.services_exists}
+Services file size: ${data.services_size} bytes
+Scan file exists: ${data.scan_exists}
+Scan file size: ${data.scan_size} bytes
+
+Check console for full services.json content.`);
+        
+        if (data.services_content) {
+          console.log('Services.json content:', JSON.parse(data.services_content));
+        }
+        
+      } catch (error) {
+        console.error('Debug failed:', error);
+        alert('Debug failed - check console for details');
       }
     });
 
