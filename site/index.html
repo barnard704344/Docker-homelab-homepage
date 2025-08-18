@@ -338,7 +338,12 @@
           group: x.group ? String(x.group) : 'Discovered',
           desc: x.desc ? String(x.desc) : '',
           tags: Array.isArray(x.tags) ? x.tags.map(String) : [],
-          statusPath: x.statusPath ? String(x.statusPath) : '/'
+          statusPath: x.statusPath ? String(x.statusPath) : '/',
+          ports: Array.isArray(x.ports) ? x.ports.map(p => ({
+            port: String(p.port),
+            service: String(p.service),
+            url: String(p.url)
+          })) : []
         }));
     }
 
