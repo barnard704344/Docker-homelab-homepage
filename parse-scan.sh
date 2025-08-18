@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -e
 
 # Parse nmap scan results and generate services.json for the homepage
 SCAN_FILE="/var/www/site/scan/last-scan.txt"
@@ -9,20 +9,38 @@ echo "[discovery] Parsing scan results from ${SCAN_FILE}..."
 
 if [[ ! -f "${SCAN_FILE}" ]]; then
     echo "[discovery] ERROR: No scan file found at ${SCAN_FILE}"
-    echo "[]" > "${SERVICES_FILE}"
+    echo "[]" > "${SERVICES_FILE}" || {
+        echo "[discovery] ERROR: Cannot write to ${SERVICES_FILE}"
+        exit 1
+    }
     exit 1
 fi
 
 # Create services directory if it doesn't exist
-mkdir -p "$(dirname "${SERVICES_FILE}")"
+mkdir -p "$(dirname "${SERVICES_FILE}")" || {
+    echo "[discovery] ERROR: Cannot create directory $(dirname "${SERVICES_FILE}")"
+    exit 1
+}
 
 echo "[discovery] Scan file size: $(wc -c < "${SCAN_FILE}") bytes"
+echo "[discovery] Testing write permissions to $(dirname "${SERVICES_FILE}")..."
+
+# Test write permissions
+if ! touch "${SERVICES_FILE}.test" 2>/dev/null; then
+    echo "[discovery] ERROR: Cannot write to $(dirname "${SERVICES_FILE}")"
+    echo "[discovery] Directory permissions:"
+    ls -la "$(dirname "${SERVICES_FILE}")" || true
+    exit 1
+else
+    rm -f "${SERVICES_FILE}.test"
+    echo "[discovery] Write permissions: OK"
+fi
 
 # Simple approach - just extract named hosts first
-declare -a services=()
+services=()
 
 echo "[discovery] Extracting named hosts..."
-while IFS= read -r line; do
+while IFS= read -r line || [[ -n "$line" ]]; do
     if [[ $line =~ ^Nmap\ scan\ report\ for\ (.+)\ \(([0-9.]+)\)$ ]]; then
         hostname="${BASH_REMATCH[1]}"
         ip="${BASH_REMATCH[2]}"
@@ -42,7 +60,10 @@ echo "[discovery] Found ${#services[@]} named hosts"
 
 if [[ ${#services[@]} -eq 0 ]]; then
     echo "[discovery] WARNING: No named hosts found, creating empty services file"
-    echo "[]" > "${SERVICES_FILE}"
+    echo "[]" > "${SERVICES_FILE}" || {
+        echo "[discovery] ERROR: Cannot write empty array to ${SERVICES_FILE}"
+        exit 1
+    }
     exit 0
 fi
 
@@ -51,19 +72,24 @@ echo "[discovery] Creating JSON file..."
 {
     echo "["
     for i in "${!services[@]}"; do
-        IFS='|' read -r name ip <<< "${services[$i]}"
+        service_entry="${services[$i]}"
+        IFS='|' read -r name ip <<< "$service_entry"
         
         # Add comma if not first entry
         if [[ $i -gt 0 ]]; then
             echo ","
         fi
         
-        # Simple JSON entry
-        printf '  {\n    "title": "%s",\n    "url": "http://%s",\n    "group": "Discovered",\n    "desc": "Auto-discovered: %s",\n    "tags": ["discovered", "nmap"]\n  }' "$name" "$ip" "$ip"
+        # Simple JSON entry - escape quotes in names
+        escaped_name=$(echo "$name" | sed 's/"/\\"/g')
+        printf '  {\n    "title": "%s",\n    "url": "http://%s",\n    "group": "Discovered",\n    "desc": "Auto-discovered: %s",\n    "tags": ["discovered", "nmap"]\n  }' "$escaped_name" "$ip" "$ip"
     done
     echo
     echo "]"
-} > "${SERVICES_FILE}"
+} > "${SERVICES_FILE}" || {
+    echo "[discovery] ERROR: Failed to write JSON to ${SERVICES_FILE}"
+    exit 1
+}
 
 # Validate JSON
 if command -v jq >/dev/null 2>&1; then

@@ -15,13 +15,15 @@ COPY site/ /var/www/site/
 COPY nginx.conf /etc/nginx/nginx.conf
 
 # Copy scripts into image
-COPY scan.sh /app/scan.sh
-COPY parse-scan.sh /app/parse-scan.sh
-COPY start.sh /app/start.sh
+COPY scan.sh /usr/local/bin/scan.sh
+COPY parse-scan.sh /usr/local/bin/parse-scan.sh
+COPY start.sh /usr/local/bin/start.sh
+COPY run-scan.php /var/www/site/run-scan.php
+COPY debug.php /var/www/site/debug.php
 
-# Make scripts executable and create symlink for easier access
-RUN chmod +x /app/scan.sh /app/parse-scan.sh /app/start.sh && \
-    ln -sf /app/scan.sh /opt/scan.sh
+# Make scripts executable and create symlinks for easier access
+RUN chmod +x /usr/local/bin/scan.sh /usr/local/bin/parse-scan.sh /usr/local/bin/start.sh && \
+    ln -sf /usr/local/bin/scan.sh /opt/scan.sh
 
 # Configure PHP-FPM
 RUN sed -i 's/listen = 127.0.0.1:9000/listen = 9000/' /etc/php82/php-fpm.d/www.conf && \
@@ -35,4 +37,4 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD curl -fsS http://127.0.0.1/ || exit 1
 
 # Start script will optionally run scans and then start nginx in foreground
-CMD ["/app/start.sh"]
+CMD ["/usr/local/bin/start.sh"]
