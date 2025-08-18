@@ -126,6 +126,72 @@ ss -ltnp | grep ':8080 '
 
 ---
 
+## 🔄 Rebuilding the Container
+
+When you make changes to the code or want to update to the latest version:
+
+### Method 1: Using Git (Recommended)
+```bash
+# On your development machine, commit and push changes
+git add .
+git commit -m "Update homepage features"
+git push
+
+# On your Docker host machine
+git pull
+docker stop homelab-homepage 2>/dev/null || true
+docker rm homelab-homepage 2>/dev/null || true
+docker build -t homelab-homepage .
+
+# Restart with your preferred configuration
+docker run -d \
+  --name homelab-homepage \
+  -p 8080:80 \
+  -e SUBNETS="192.168.1.0/24" \
+  -e SCAN_INTERVAL=10 \
+  homelab-homepage
+```
+
+### Method 2: Manual File Transfer
+```bash
+# Transfer files to Docker host (adjust paths as needed)
+scp -r /path/to/Docker-homelab-homepage/ user@docker-host:/path/to/project/
+
+# On Docker host machine
+cd /path/to/Docker-homelab-homepage
+docker stop homelab-homepage 2>/dev/null || true
+docker rm homelab-homepage 2>/dev/null || true
+docker build -t homelab-homepage .
+docker run -d --name homelab-homepage -p 8080:80 -e SUBNETS="192.168.1.0/24" homelab-homepage
+```
+
+### Quick Rebuild Script
+Create a `rebuild.sh` script on your Docker host:
+```bash
+#!/bin/bash
+echo "Stopping existing container..."
+docker stop homelab-homepage 2>/dev/null || true
+docker rm homelab-homepage 2>/dev/null || true
+
+echo "Rebuilding image..."
+docker build -t homelab-homepage .
+
+echo "Starting new container..."
+docker run -d \
+  --name homelab-homepage \
+  -p 8080:80 \
+  -e SUBNETS="192.168.1.0/24" \
+  -e SCAN_INTERVAL=10 \
+  homelab-homepage
+
+echo "Container rebuilt and started!"
+docker ps --filter name=homelab-homepage
+```
+
+Make it executable: `chmod +x rebuild.sh` and run: `./rebuild.sh`
+
+---
+
 ## 🧹 Maintenance
 
 Stop:
