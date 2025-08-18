@@ -5,97 +5,560 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Homelab • Start</title>
   <style>
-    /* (styling from previous version unchanged) */
+    :root {
+      --bg: #0f0f23;
+      --fg: #cccccc;
+      --border: #333;
+      --accent: #009900;
+      --accent-hover: #00cc00;
+      --card-bg: #1a1a2e;
+      --card-hover: #252547;
+      --warning: #ff6b35;
+      --muted: #888;
+    }
+    
+    * { box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      margin: 0;
+      padding: 20px;
+      line-height: 1.4;
+      min-height: 100vh;
+    }
+    
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    header h1 {
+      font-size: 2rem;
+      margin: 0;
+      color: var(--accent);
+    }
+    
+    .toolbar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+    }
+    
+    .search-box {
+      position: relative;
+      flex: 1;
+      max-width: 400px;
+    }
+    
+    #search {
+      width: 100%;
+      padding: 12px 40px 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card-bg);
+      color: var(--fg);
+      font-size: 16px;
+    }
+    
+    #search:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    
+    .search-icon {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+    }
+    
+    .btn {
+      padding: 10px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card-bg);
+      color: var(--fg);
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    
+    .btn:hover {
+      background: var(--card-hover);
+      border-color: var(--accent);
+    }
+    
+    .btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .group {
+      background: var(--card-bg);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    
+    .group-header {
+      padding: 16px 20px;
+      background: rgba(255,255,255,0.05);
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 18px;
+    }
+    
+    .card {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.2s;
+      position: relative;
+    }
+    
+    .card:last-child {
+      border-bottom: none;
+    }
+    
+    .card:hover {
+      background: var(--card-hover);
+    }
+    
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    
+    .card-title {
+      font-weight: 600;
+      color: var(--fg);
+      text-decoration: none;
+      flex: 1;
+    }
+    
+    .card-title:hover {
+      color: var(--accent);
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+    }
+    
+    .status-dot.online { background: var(--accent); }
+    .status-dot.offline { background: var(--warning); }
+    
+    .card-desc {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+    
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+    }
+    
+    .tag {
+      background: rgba(255,255,255,0.1);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    
+    .pin-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 4px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    
+    .pin-btn:hover {
+      background: rgba(255,255,255,0.1);
+    }
+    
+    .pin-btn.pinned {
+      color: var(--accent);
+    }
+    
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 40px;
+    }
+    
+    .muted { color: var(--muted); }
+    
+    @media (max-width: 768px) {
+      .toolbar {
+        flex-direction: column;
+      }
+      
+      .search-box {
+        max-width: none;
+      }
+      
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
-  <header>…</header>
+  <header>
+    <h1>🏠 Homelab</h1>
+  </header>
+  
   <main>
-    <div class="toolbar">…</div>
+    <div class="toolbar">
+      <div class="search-box">
+        <input type="text" id="search" placeholder="Search services... (press / to focus)" />
+        <span class="search-icon">🔍</span>
+      </div>
+      <button class="btn" id="toggle-pins">📌 Pinned</button>
+      <button class="btn" id="refresh">🔄 Refresh</button>
+    </div>
+    
     <div id="grid" class="grid" aria-live="polite"></div>
-    <footer class="muted"><p>Tip: pin your most used services…</p></footer>
+    
+    <footer class="muted">
+      <p>Tip: pin your most used services with the 📌 button • Press "/" to search</p>
+    </footer>
   </main>
 
   <script>
-  // --- STATIC LINKS (your own curated list)
-  const LINKS = [
-    { title: "Proxmox", url: "https://proxmox.local:8006", group: "Core", desc: "Hypervisor cluster", tags:["vm","cluster"], statusPath:"/" },
-    { title: "Portainer", url: "https://portainer.local", group: "Core", desc: "Docker UI", tags:["docker"], statusPath:"/" },
-    // add more manually curated ones here
-  ];
+    // --- STATIC LINKS (your own curated list)
+    const LINKS = [
+      { title: "Proxmox", url: "https://proxmox.local:8006", group: "Core", desc: "Hypervisor cluster", tags: ["vm", "cluster"], statusPath: "/" },
+      { title: "Portainer", url: "https://portainer.local", group: "Core", desc: "Docker UI", tags: ["docker"], statusPath: "/" },
+      // Add more manually curated ones here
+    ];
 
-  // --- DYNAMIC LINKS from scanner
-  let DYNAMIC_LINKS = [];
+    // --- DYNAMIC LINKS from scanner
+    let DYNAMIC_LINKS = [];
+    
+    // --- DOM references
+    const grid = document.getElementById('grid');
+    const search = document.getElementById('search');
+    const togglePinsBtn = document.getElementById('toggle-pins');
+    const refreshBtn = document.getElementById('refresh');
+    
+    let showingPinnedOnly = false;
 
-  async function loadDynamicLinks() {
-    try {
-      const res = await fetch('services.json?ts=' + Date.now(), { cache: 'no-store' });
-      if (!res.ok) throw new Error('no manifest');
-      const data = await res.json();
-      const incoming = Array.isArray(data) ? data : (Array.isArray(data.links) ? data.links : []);
-      DYNAMIC_LINKS = sanitizeLinks(incoming);
-    } catch {
-      DYNAMIC_LINKS = [];
+    // --- Load dynamic links from services.json
+    async function loadDynamicLinks() {
+      try {
+        const res = await fetch('services.json?ts=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) throw new Error('no manifest');
+        const data = await res.json();
+        const incoming = Array.isArray(data) ? data : (Array.isArray(data.links) ? data.links : []);
+        DYNAMIC_LINKS = sanitizeLinks(incoming);
+      } catch (err) {
+        console.log('Could not load services.json:', err.message);
+        DYNAMIC_LINKS = [];
+      }
     }
-  }
 
-  function sanitizeLinks(arr) {
-    return arr.filter(x => x && x.title && x.url)
-      .map(x => ({
-        title: String(x.title),
-        url: String(x.url),
-        group: x.group ? String(x.group) : 'Discovered',
-        desc: x.desc ? String(x.desc) : '',
-        tags: Array.isArray(x.tags) ? x.tags.map(String) : [],
-        statusPath: x.statusPath ? String(x.statusPath) : '/'
+    // --- Sanitize incoming links
+    function sanitizeLinks(arr) {
+      return arr.filter(x => x && x.title && x.url)
+        .map(x => ({
+          title: String(x.title),
+          url: String(x.url),
+          group: x.group ? String(x.group) : 'Discovered',
+          desc: x.desc ? String(x.desc) : '',
+          tags: Array.isArray(x.tags) ? x.tags.map(String) : [],
+          statusPath: x.statusPath ? String(x.statusPath) : '/'
+        }));
+    }
+
+    // --- Merge and dedupe links
+    function mergedLinks() {
+      const seen = new Set();
+      const out = [];
+      const all = [...LINKS, ...DYNAMIC_LINKS];
+      
+      for (const link of all) {
+        const urlKey = (link.url || '').toLowerCase();
+        const titleKey = (link.title || '').toLowerCase();
+        const key = urlKey || ('title:' + titleKey);
+        
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        out.push(link);
+      }
+      
+      return out;
+    }
+
+    // --- Group links by group property
+    function groupsFromLinks(links) {
+      const groups = new Map();
+      
+      for (const link of links) {
+        const group = link.group || 'Other';
+        if (!groups.has(group)) {
+          groups.set(group, []);
+        }
+        groups.get(group).push(link);
+      }
+      
+      // Sort groups: Core first, then alphabetical
+      return new Map([...groups.entries()].sort(([a], [b]) => {
+        if (a === 'Core') return -1;
+        if (b === 'Core') return 1;
+        return a.localeCompare(b);
       }));
-  }
-
-  function mergedLinks() {
-    const seen = new Set(), out = [];
-    const all = [...LINKS, ...DYNAMIC_LINKS];
-    for (const l of all) {
-      const urlKey = (l.url||'').toLowerCase();
-      const titleKey = (l.title||'').toLowerCase();
-      const key = urlKey || ('title:' + titleKey);
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      out.push(l);
-    }
-    return out;
-  }
-
-  // render(), groupsFromLinks(), favicon helpers, etc. (same as before) …
-
-  function render(filterPinned=false) {
-    grid.innerHTML='';
-    const term = (q.value||'').trim().toLowerCase();
-    let links = mergedLinks();
-
-    if(term) {
-      links = links.filter(l =>
-        (l.title||'').toLowerCase().includes(term) ||
-        (l.desc||'').toLowerCase().includes(term) ||
-        (l.tags||[]).join(',').toLowerCase().includes(term) ||
-        (()=>{ try { return new URL(l.url).hostname.toLowerCase().includes(term); } catch { return false; } })()
-      );
     }
 
-    if(filterPinned) {
-      const pins=new Set(getPins());
-      links = links.filter(l=>pins.has(l.title));
+    // --- Get favicon URL
+    function getFaviconUrl(url) {
+      try {
+        const domain = new URL(url).hostname;
+        return `https://www.google.com/s2/favicons?domain=${domain}&sz=16`;
+      } catch {
+        return 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="%23666"/></svg>';
+      }
     }
 
-    const groups = groupsFromLinks(links);
-    for(const [name, arr] of groups) { grid.appendChild(groupPanel(name, arr)); }
-  }
+    // --- Create group panel
+    function groupPanel(groupName, links) {
+      const panel = document.createElement('div');
+      panel.className = 'group';
+      
+      const header = document.createElement('div');
+      header.className = 'group-header';
+      header.textContent = groupName;
+      panel.appendChild(header);
+      
+      for (const link of links) {
+        const card = createCard(link);
+        panel.appendChild(card);
+      }
+      
+      return panel;
+    }
 
-  // boot
-  (async () => {
-    await loadDynamicLinks();
-    render(false);
-    checkVisible();
-  })();
+    // --- Create individual service card
+    function createCard(link) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      
+      const isPinned = getPins().includes(link.title);
+      
+      card.innerHTML = `
+        <div class="card-header">
+          <img src="${getFaviconUrl(link.url)}" width="16" height="16" alt="" onerror="this.style.display='none'">
+          <a href="${link.url}" class="card-title" target="_blank" rel="noopener">${escapeHtml(link.title)}</a>
+          <div class="status-dot" data-url="${link.url}" data-path="${link.statusPath}"></div>
+        </div>
+        ${link.desc ? `<div class="card-desc">${escapeHtml(link.desc)}</div>` : ''}
+        <div class="card-meta">
+          ${link.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+        </div>
+        <button class="pin-btn ${isPinned ? 'pinned' : ''}" data-title="${escapeHtml(link.title)}">
+          ${isPinned ? '📍' : '📌'}
+        </button>
+      `;
+      
+      // Add pin button handler
+      const pinBtn = card.querySelector('.pin-btn');
+      pinBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        togglePin(link.title);
+        render();
+      });
+      
+      return card;
+    }
+
+    // --- Escape HTML
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // --- Pin management
+    function getPins() {
+      try {
+        return JSON.parse(localStorage.getItem('homelab-pins') || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+    function setPins(pins) {
+      localStorage.setItem('homelab-pins', JSON.stringify(pins));
+    }
+
+    function togglePin(title) {
+      const pins = getPins();
+      const index = pins.indexOf(title);
+      
+      if (index === -1) {
+        pins.push(title);
+      } else {
+        pins.splice(index, 1);
+      }
+      
+      setPins(pins);
+    }
+
+    // --- Main render function
+    function render() {
+      grid.innerHTML = '';
+      const term = (search.value || '').trim().toLowerCase();
+      let links = mergedLinks();
+
+      // Filter by search term
+      if (term) {
+        links = links.filter(link =>
+          (link.title || '').toLowerCase().includes(term) ||
+          (link.desc || '').toLowerCase().includes(term) ||
+          (link.tags || []).join(',').toLowerCase().includes(term) ||
+          (() => {
+            try {
+              return new URL(link.url).hostname.toLowerCase().includes(term);
+            } catch {
+              return false;
+            }
+          })()
+        );
+      }
+
+      // Filter by pinned if active
+      if (showingPinnedOnly) {
+        const pins = new Set(getPins());
+        links = links.filter(link => pins.has(link.title));
+      }
+
+      const groups = groupsFromLinks(links);
+      
+      if (groups.size === 0) {
+        grid.innerHTML = '<div style="text-align: center; color: var(--muted); padding: 40px;">No services found</div>';
+        return;
+      }
+      
+      for (const [name, groupLinks] of groups) {
+        grid.appendChild(groupPanel(name, groupLinks));
+      }
+      
+      // Start status checks
+      checkVisible();
+    }
+
+    // --- Status checking
+    async function checkVisible() {
+      const dots = document.querySelectorAll('.status-dot[data-url]');
+      
+      for (const dot of dots) {
+        checkStatus(dot);
+      }
+    }
+
+    async function checkStatus(dot) {
+      const url = dot.dataset.url;
+      const path = dot.dataset.path || '/';
+      
+      try {
+        const checkUrl = new URL(path, url).toString();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch(checkUrl, {
+          method: 'HEAD',
+          signal: controller.signal,
+          mode: 'no-cors'
+        });
+        
+        clearTimeout(timeoutId);
+        dot.className = 'status-dot online';
+      } catch (error) {
+        dot.className = 'status-dot offline';
+      }
+    }
+
+    // --- Event listeners
+    search.addEventListener('input', debounce(() => render(), 300));
+    
+    search.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        search.value = '';
+        render();
+      }
+    });
+
+    togglePinsBtn.addEventListener('click', () => {
+      showingPinnedOnly = !showingPinnedOnly;
+      togglePinsBtn.classList.toggle('active', showingPinnedOnly);
+      togglePinsBtn.textContent = showingPinnedOnly ? '📍 All' : '📌 Pinned';
+      render();
+    });
+
+    refreshBtn.addEventListener('click', async () => {
+      refreshBtn.textContent = '⏳ Loading...';
+      await loadDynamicLinks();
+      render();
+      refreshBtn.textContent = '🔄 Refresh';
+    });
+
+    // Global search shortcut
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '/' && e.target !== search) {
+        e.preventDefault();
+        search.focus();
+      }
+    });
+
+    // --- Utility functions
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+
+    // --- Initialize app
+    (async () => {
+      await loadDynamicLinks();
+      render();
+    })();
   </script>
 </body>
 </html>
