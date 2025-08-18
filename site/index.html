@@ -253,6 +253,7 @@
       <button class="btn" id="toggle-pins">📌 Pinned</button>
       <button class="btn" id="refresh">🔄 Refresh</button>
       <button class="btn" id="run-scan">🔍 Run Scan</button>
+      <button class="btn" id="parse-scan">📋 Parse Scan</button>
       <button class="btn" id="debug-services">🔧 Debug</button>
     </div>
     
@@ -282,6 +283,7 @@
     const togglePinsBtn = document.getElementById('toggle-pins');
     const refreshBtn = document.getElementById('refresh');
     const runScanBtn = document.getElementById('run-scan');
+    const parseScanBtn = document.getElementById('parse-scan');
     const debugBtn = document.getElementById('debug-services');
     
     let showingPinnedOnly = false;
@@ -592,6 +594,47 @@
         setTimeout(() => {
           runScanBtn.textContent = '🔍 Run Scan';
           runScanBtn.disabled = false;
+        }, 3000);
+      }
+    });
+
+    parseScanBtn.addEventListener('click', async () => {
+      parseScanBtn.textContent = '⏳ Parsing...';
+      parseScanBtn.disabled = true;
+      
+      try {
+        const response = await fetch('/parse-scan.php');
+        const data = await response.json();
+        
+        console.log('Parse result:', data);
+        
+        if (data.success) {
+          parseScanBtn.textContent = '✅ Parsed';
+          alert(`Parser completed successfully!
+Services file created: ${data.services_file_exists}
+Services file size: ${data.services_file_size} bytes
+
+Refreshing page to load new services...`);
+          
+          // Reload dynamic links and re-render
+          await loadDynamicLinks();
+          render();
+        } else {
+          throw new Error(data.output || 'Parser failed');
+        }
+        
+        setTimeout(() => {
+          parseScanBtn.textContent = '📋 Parse Scan';
+          parseScanBtn.disabled = false;
+        }, 3000);
+        
+      } catch (error) {
+        console.error('Parse failed:', error);
+        parseScanBtn.textContent = '❌ Parse Failed';
+        alert('Parse failed: ' + error.message);
+        setTimeout(() => {
+          parseScanBtn.textContent = '📋 Parse Scan';
+          parseScanBtn.disabled = false;
         }, 3000);
       }
     });

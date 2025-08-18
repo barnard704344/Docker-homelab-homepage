@@ -2,8 +2,6 @@
 set -euo pipefail
 
 # Parse nmap scan results and generate services.json for the homepage
-# This script reads the scan output and creates service entries for discovered hosts
-
 SCAN_FILE="/var/www/site/scan/last-scan.txt"
 SERVICES_FILE="/var/www/site/services.json"
 
@@ -15,49 +13,53 @@ if [[ ! -f "${SCAN_FILE}" ]]; then
     exit 0
 fi
 
-# Create temporary file for building JSON
-TEMP_JSON=$(mktemp)
-echo "[" > "${TEMP_JSON}"
+# Use a more reliable approach with arrays
+declare -a services=()
 
-# Parse the scan results
-FIRST_ENTRY=true
-
-# Process each host entry
-grep -A 20 "^Nmap scan report for" "${SCAN_FILE}" | while IFS= read -r line; do
-    # Look for nmap scan report lines with hostnames and IPs
+# Extract named hosts from scan results
+while IFS= read -r line; do
     if [[ $line =~ ^Nmap\ scan\ report\ for\ (.+)\ \(([0-9.]+)\)$ ]]; then
         hostname="${BASH_REMATCH[1]}"
         ip="${BASH_REMATCH[2]}"
         
-        # Clean up hostname (remove domain suffix)
+        # Clean up hostname
         display_name=$(echo "$hostname" | sed 's/\.islington\.local$//' | sed 's/\.local$//')
         
-        # Add entry for named hosts
-        if [[ $FIRST_ENTRY == false ]]; then
-            echo "," >> "${TEMP_JSON}"
+        # Skip if display name is empty or just an IP
+        if [[ -n "$display_name" ]] && [[ ! "$display_name" =~ ^[0-9.]+$ ]]; then
+            services+=("$display_name|$ip")
+            echo "[discovery] Found: $display_name ($ip)"
         fi
-        
-        cat >> "${TEMP_JSON}" << EOF
+    fi
+done < <(grep "^Nmap scan report for" "${SCAN_FILE}")
+
+# Generate JSON
+echo "[discovery] Creating JSON with ${#services[@]} entries..."
+
+echo "[" > "${SERVICES_FILE}"
+for i in "${!services[@]}"; do
+    IFS='|' read -r name ip <<< "${services[$i]}"
+    
+    # Add comma if not first entry
+    if [[ $i -gt 0 ]]; then
+        echo "," >> "${SERVICES_FILE}"
+    fi
+    
+    cat >> "${SERVICES_FILE}" << EOF
   {
-    "title": "${display_name}",
+    "title": "${name}",
     "url": "http://${ip}",
     "group": "Discovered",
     "desc": "Auto-discovered from network scan (${ip})",
-    "tags": ["discovered", "nmap"]
+    "tags": ["discovered", "nmap", "homelab"]
   }EOF
-        
-        FIRST_ENTRY=false
-        
-    elif [[ $line =~ ^Nmap\ scan\ report\ for\ ([0-9.]+)$ ]]; then
-        # IP-only entries (less interesting, skip for now)
-        continue
-    fi
 done
 
-echo "]" >> "${TEMP_JSON}"
+echo >> "${SERVICES_FILE}"
+echo "]" >> "${SERVICES_FILE}"
 
-# Move the completed file
-mv "${TEMP_JSON}" "${SERVICES_FILE}"
-chown nginx:nginx "${SERVICES_FILE}"
+# Set permissions
+chown nginx:nginx "${SERVICES_FILE}" 2>/dev/null || true
+chmod 644 "${SERVICES_FILE}"
 
-echo "[discovery] Generated $(jq length "${SERVICES_FILE}") service entries in ${SERVICES_FILE}"
+echo "[discovery] Generated services.json with ${#services[@]} entries"
