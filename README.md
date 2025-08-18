@@ -9,7 +9,8 @@ This container runs an Nginx-powered site that can be updated dynamically using 
 - Simple static homepage served by **Nginx**
 - Auto-populated by network scan (`nmap`)
 - Runs in Docker with minimal dependencies
-- LAN-accessible (using Docker host networking)
+- LAN-accessible via published port
+- Configurable subnet scanning with `SUBNETS` environment variable
 
 ---
 
@@ -26,44 +27,57 @@ cd Docker-homelab-homepage
 docker build -t homelab-homepage .
 ```
 
-### 3. Run the Container (Host Networking)
+### 3. Run the Container (Port 8080)
 Stop and remove any existing container first:
 ```bash
 docker stop homelab-homepage 2>/dev/null || true
 docker rm homelab-homepage 2>/dev/null || true
 ```
 
-Then start a fresh one:
+Then start a fresh one (example with a single subnet):
 ```bash
-docker run -d   --name homelab-homepage   --network host   homelab-homepage
+docker run -d   --name homelab-homepage   -p 8080:80   -e SUBNETS="192.168.1.0/24"   -e RUN_SCAN_ON_START=1   homelab-homepage
 ```
 
-> Using `--network host` makes the homepage available on the same IP as your Docker host.  
+> This maps port 80 inside the container to port 8080 on the host.  
 > Example: if your host is `192.168.1.20`, the site will be at:
 > ```
-> http://192.168.1.20/
+> http://192.168.1.20:8080/
 > ```
 
 ---
 
-## 🔍 Updating the Homepage via Scan
+## 🔍 Configuring Subnet Scans
 
-This repo includes a script that can scan your LAN and update the homepage dynamically.
+You can configure which subnets to scan by setting the `SUBNETS` environment variable.  
+Multiple subnets are supported by providing them space-separated.
 
-Make scripts executable:
+Examples:
 ```bash
-chmod +x scan.sh run.sh
+# Single subnet
+-e SUBNETS="192.168.1.0/24"
+
+# Multiple subnets
+-e SUBNETS="192.168.1.0/24 10.72.28.0/22 10.136.40.0/24"
 ```
 
-Run the scan:
+Enable automatic scan at container startup with:
 ```bash
-./scan.sh
+-e RUN_SCAN_ON_START=1
 ```
 
-Restart container with updated data:
+---
+
+## 🔍 Manual Scanning
+
+Trigger a manual scan inside the container at any time:
 ```bash
-./run.sh
+docker exec -it homelab-homepage /app/scan.sh
 ```
+
+The latest scan result will be written to:
+- `/var/www/site/scan/last-scan.txt` inside the container
+- Accessible via browser at `http://<HOST_LAN_IP>:8080/scan/last-scan.txt` or `http://<HOST_LAN_IP>:8080/scan.txt`
 
 ---
 
@@ -80,9 +94,9 @@ docker ps
 ```
 
 ### Firewall
-Make sure port 80 is open on the host:
+Make sure port 8080 is open on the host:
 ```bash
-sudo ufw allow 80/tcp
+sudo ufw allow 8080/tcp
 ```
 
 ---
@@ -107,9 +121,9 @@ docker build -t homelab-homepage .
 ---
 
 ## 🌐 Access
-- From host: [http://localhost](http://localhost)
-- From LAN: `http://<HOST_LAN_IP>/`
-  - Example: `http://192.168.1.20/`
+- From host: [http://localhost:8080](http://localhost:8080)
+- From LAN: `http://<HOST_LAN_IP>:8080/`
+  - Example: `http://192.168.1.20:8080/`
 
 ---
 
