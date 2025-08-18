@@ -553,6 +553,14 @@
       await loadDynamicLinks();
       render();
       refreshBtn.textContent = '🔄 Refresh';
+      
+      // Show a brief success indicator
+      setTimeout(() => {
+        refreshBtn.textContent = '✅ Refreshed';
+        setTimeout(() => {
+          refreshBtn.textContent = '🔄 Refresh';
+        }, 1500);
+      }, 100);
     });
 
     runScanBtn.addEventListener('click', async () => {
@@ -569,10 +577,23 @@
         
         if (response.ok) {
           runScanBtn.textContent = '✅ Scan Started';
-          setTimeout(() => {
-            runScanBtn.textContent = '🔍 Run Scan';
-            runScanBtn.disabled = false;
-          }, 3000);
+          
+          // Wait a bit for scan to complete, then refresh services
+          setTimeout(async () => {
+            try {
+              await loadDynamicLinks();
+              render();
+              runScanBtn.textContent = '🔄 Updated';
+            } catch (error) {
+              console.log('Auto-refresh failed:', error);
+            }
+            
+            setTimeout(() => {
+              runScanBtn.textContent = '🔍 Run Scan';
+              runScanBtn.disabled = false;
+            }, 2000);
+          }, 25000); // Wait 25 seconds for scan to complete
+          
         } else {
           throw new Error(`HTTP ${response.status}`);
         }
