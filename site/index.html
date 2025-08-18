@@ -215,6 +215,36 @@
       color: var(--accent);
     }
     
+    .ports-section {
+      margin: 8px 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    
+    .port-btn {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 11px;
+      padding: 2px 6px;
+      margin: 0 2px;
+      border-radius: 3px;
+      transition: all 0.2s;
+    }
+    
+    .port-btn:hover {
+      background: var(--accent);
+      color: white;
+      transform: translateY(-1px);
+    }
+    
+    .port-btn.selected {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+    
     footer {
       text-align: center;
       color: var(--muted);
@@ -316,7 +346,8 @@
     function mergedLinks() {
       const seen = new Set();
       const out = [];
-      const all = [...LINKS, ...DYNAMIC_LINKS];
+      const pinned = getPins(); // Get pinned services as objects
+      const all = [...LINKS, ...DYNAMIC_LINKS, ...pinned];
       
       for (const link of all) {
         const urlKey = (link.url || '').toLowerCase();
@@ -384,8 +415,17 @@
       const card = document.createElement('div');
       card.className = 'card';
       
-      const isPinned = getPins().includes(link.title);
+      const isPinned = getPins().some(p => p.title === link.title);
       const faviconUrl = getFaviconUrl(link.url);
+      
+      // Build ports section if available
+      let portsHtml = '';
+      if (link.ports && link.ports.length > 0) {
+        const portButtons = link.ports.map(p => 
+          `<button class="port-btn" data-url="${p.url}" data-port="${p.port}" data-service="${p.service}" onclick="selectPort('${escapeHtml(link.title)}', '${p.port}', '${p.url}', '${p.service}')">${p.port}</button>`
+        ).join('');
+        portsHtml = `<div class="ports-section">Ports: ${portButtons}</div>`;
+      }
       
       card.innerHTML = `
         <div class="card-header">
@@ -394,6 +434,7 @@
           <div class="status-dot" data-url="${link.url}" data-path="${link.statusPath}"></div>
         </div>
         ${link.desc ? `<div class="card-desc">${escapeHtml(link.desc)}</div>` : ''}
+        ${portsHtml}
         <div class="card-meta">
           ${link.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
         </div>
@@ -412,6 +453,34 @@
       
       return card;
     }
+    
+    // --- Port selection for discovered services
+    function selectPort(serviceTitle, port, url, service) {
+      // Update the main URL for this service temporarily
+      const serviceIndex = services.findIndex(s => s.title === serviceTitle);
+      if (serviceIndex !== -1) {
+        services[serviceIndex].url = url;
+        services[serviceIndex].selectedPort = port;
+        
+        // Update the card title link immediately
+        const cards = document.querySelectorAll('.card');
+        cards.forEach(card => {
+          const titleLink = card.querySelector('.card-title');
+          if (titleLink && titleLink.textContent === serviceTitle) {
+            titleLink.href = url;
+            
+            // Update port button states
+            const portBtns = card.querySelectorAll('.port-btn');
+            portBtns.forEach(btn => {
+              btn.classList.remove('selected');
+              if (btn.dataset.port === port) {
+                btn.classList.add('selected');
+              }
+            });
+          }
+        });
+      }
+    }
 
     // --- Escape HTML
     function escapeHtml(text) {
@@ -420,30 +489,45 @@
       return div.innerHTML;
     }
 
-    // --- Pin management
+    // --- Pin management with port-specific URLs
     function getPins() {
       try {
-        return JSON.parse(localStorage.getItem('homelab-pins') || '[]');
-      } catch {
+        return JSON.parse(localStorage.getItem('pinnedServices') || '[]');
+      } catch (e) {
         return [];
       }
     }
 
     function setPins(pins) {
-      localStorage.setItem('homelab-pins', JSON.stringify(pins));
+      localStorage.setItem('pinnedServices', JSON.stringify(pins));
     }
 
     function togglePin(title) {
       const pins = getPins();
-      const index = pins.indexOf(title);
+      const service = services.find(s => s.title === title);
       
-      if (index === -1) {
-        pins.push(title);
-      } else {
-        pins.splice(index, 1);
+      if (pins.find(p => p.title === title)) {
+        // Remove from pins
+        const newPins = pins.filter(p => p.title !== title);
+        setPins(newPins);
+      } else if (service) {
+        // Add to pins with selected URL (if port was selected)
+        const pinData = {
+          title: service.title,
+          url: service.url, // This will be the selected port URL if one was chosen
+          group: 'Pinned',
+          desc: service.desc,
+          tags: ['pinned'],
+          selectedPort: service.selectedPort || null
+        };
+        
+        pins.push(pinData);
+        setPins(pins);
       }
-      
-      setPins(pins);
+    }
+
+    function getPinnedServices() {
+      return getPins();
     }
 
     // --- Main render function

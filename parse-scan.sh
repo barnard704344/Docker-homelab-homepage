@@ -166,12 +166,13 @@ echo "[discovery] Creating JSON file..."
             echo ","
         fi
         
-        # Determine primary URL and build description
+        # Determine primary URL and build description with port data
         primary_url="http://$ip"
         description="Auto-discovered: $ip"
+        available_ports=[]
         
         if [[ -n "$ports" ]]; then
-            # Parse ports and find the best one for primary URL
+            # Parse ports and build available ports array
             IFS=',' read -ra port_array <<< "$ports"
             port_descriptions=()
             
@@ -180,11 +181,18 @@ echo "[discovery] Creating JSON file..."
                     IFS='/' read -r port service <<< "$port_info"
                     port_descriptions+=("$port ($service)")
                     
-                    # Set primary URL based on port priority
+                    # Add to available ports with URL
                     case $port in
-                        80) primary_url="http://$ip" ;;
-                        443) primary_url="https://$ip" ;;
+                        80) 
+                            primary_url="http://$ip"
+                            available_ports+=("80:http://$ip")
+                            ;;
+                        443) 
+                            primary_url="https://$ip"
+                            available_ports+=("443:https://$ip")
+                            ;;
                         8080|3000|5000|8000|8888|8009) 
+                            available_ports+=("$port:http://$ip:$port")
                             if [[ "$primary_url" == "http://$ip" ]]; then
                                 primary_url="http://$ip:$port"
                             fi
@@ -227,7 +235,32 @@ echo "[discovery] Creating JSON file..."
             escaped_name=$(echo "$name" | sed 's/"/\\"/g')
         fi
         
-        printf '  {\n    "title": "%s",\n    "url": "%s",\n    "group": "Discovered",\n    "desc": "%s",\n    "tags": ["discovered", "nmap"]\n  }' "$escaped_name" "$primary_url" "$escaped_desc"
+        printf '  {\n    "title": "%s",\n    "url": "%s",\n    "group": "Discovered",\n    "desc": "%s",\n    "tags": ["discovered", "nmap"],\n    "ports": [' "$escaped_name" "$primary_url" "$escaped_desc"
+        
+        # Add available ports as JSON array
+        if [[ -n "$ports" ]]; then
+            IFS=',' read -ra port_array <<< "$ports"
+            for i in "${!port_array[@]}"; do
+                port_info="${port_array[$i]}"
+                if [[ -n "$port_info" ]]; then
+                    IFS='/' read -r port service <<< "$port_info"
+                    
+                    # Determine URL for this port
+                    case $port in
+                        80) port_url="http://$ip" ;;
+                        443) port_url="https://$ip" ;;
+                        *) port_url="http://$ip:$port" ;;
+                    esac
+                    
+                    if [[ $i -gt 0 ]]; then
+                        printf ","
+                    fi
+                    printf '{"port":"%s","service":"%s","url":"%s"}' "$port" "$service" "$port_url"
+                fi
+            done
+        fi
+        
+        printf ']\n  }'
     done
     echo
     echo "]"
