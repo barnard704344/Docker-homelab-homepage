@@ -63,4 +63,9 @@ echo "[scanner] OK: wrote ${OUTFILE}"
 
 # Parse scan results for service discovery
 echo "[scanner] Parsing scan results for service discovery..."
-/app/parse-scan.sh || echo "[scanner] WARNING: service discovery failed (non-fatal)"
+if [[ -x /usr/local/bin/parse-scan.sh ]]; then
+    /usr/local/bin/parse-scan.sh || echo "[scanner] WARNING: service discovery failed (non-fatal)"
+else
+    echo "[scanner] WARNING: parse-scan.sh not found at /usr/local/bin/"
+    ls -la /usr/local/bin/parse* /app/ 2>/dev/null || true
+fi

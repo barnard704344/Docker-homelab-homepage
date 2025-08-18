@@ -259,6 +259,7 @@
     
     <footer class="muted">
       <p>Tip: pin your most used services with the 📌 button • Press "/" to search</p>
+      <p><a href="#" onclick="checkDebug()" style="color: var(--muted); font-size: 12px;">Debug Info</a></p>
     </footer>
   </main>
 
@@ -633,6 +634,37 @@
       await loadDynamicLinks();
       render();
     })();
+
+    // --- Debug function
+    async function checkDebug() {
+      try {
+        const response = await fetch('/debug.php');
+        const data = await response.json();
+        
+        console.log('Debug Info:', data);
+        const links = mergedLinks();
+        
+        alert(`Debug Info:
+Services file exists: ${data.services_exists}
+Services file size: ${data.services_size} bytes
+Scan file exists: ${data.scan_exists}
+Scan file size: ${data.scan_size} bytes
+
+Total links loaded: ${links.length}
+Static links: ${LINKS.length}
+Dynamic links: ${DYNAMIC_LINKS.length}
+
+Check browser console for full details.`);
+        
+        if (data.services_content) {
+          console.log('Services.json content:', JSON.parse(data.services_content));
+        }
+        
+      } catch (error) {
+        console.error('Debug failed:', error);
+        alert('Debug failed - check console');
+      }
+    }
   </script>
 </body>
 </html>
