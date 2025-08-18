@@ -247,6 +247,7 @@
       </div>
       <button class="btn" id="toggle-pins">📌 Pinned</button>
       <button class="btn" id="refresh">🔄 Refresh</button>
+      <button class="btn" id="run-scan">🔍 Run Scan</button>
     </div>
     
     <div id="grid" class="grid" aria-live="polite"></div>
@@ -261,6 +262,8 @@
     const LINKS = [
       { title: "Proxmox", url: "https://proxmox.local:8006", group: "Core", desc: "Hypervisor cluster", tags: ["vm", "cluster"], statusPath: "/" },
       { title: "Portainer", url: "https://portainer.local", group: "Core", desc: "Docker UI", tags: ["docker"], statusPath: "/" },
+      { title: "Network Scan (Latest)", url: "/scan.txt", group: "Monitoring", desc: "Latest network scan results", tags: ["nmap", "scan", "network"], statusPath: "/" },
+      { title: "Network Scan (Timestamped)", url: "/scan/last-scan.txt", group: "Monitoring", desc: "Timestamped scan results", tags: ["nmap", "scan", "network"], statusPath: "/" },
       // Add more manually curated ones here
     ];
 
@@ -272,6 +275,7 @@
     const search = document.getElementById('search');
     const togglePinsBtn = document.getElementById('toggle-pins');
     const refreshBtn = document.getElementById('refresh');
+    const runScanBtn = document.getElementById('run-scan');
     
     let showingPinnedOnly = false;
 
@@ -531,6 +535,37 @@
       await loadDynamicLinks();
       render();
       refreshBtn.textContent = '🔄 Refresh';
+    });
+
+    runScanBtn.addEventListener('click', async () => {
+      runScanBtn.textContent = '⏳ Scanning...';
+      runScanBtn.disabled = true;
+      
+      try {
+        const response = await fetch('/run-scan', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (response.ok) {
+          runScanBtn.textContent = '✅ Scan Started';
+          setTimeout(() => {
+            runScanBtn.textContent = '🔍 Run Scan';
+            runScanBtn.disabled = false;
+          }, 3000);
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      } catch (error) {
+        console.error('Scan failed:', error);
+        runScanBtn.textContent = '❌ Scan Failed';
+        setTimeout(() => {
+          runScanBtn.textContent = '🔍 Run Scan';
+          runScanBtn.disabled = false;
+        }, 3000);
+      }
     });
 
     // Global search shortcut
