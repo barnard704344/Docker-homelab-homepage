@@ -13,6 +13,9 @@ if [[ ! -f "${SCAN_FILE}" ]]; then
     exit 0
 fi
 
+# Create services directory if it doesn't exist
+mkdir -p "$(dirname "${SERVICES_FILE}")"
+
 # Use a more reliable approach with arrays
 declare -a services=()
 
@@ -25,41 +28,56 @@ while IFS= read -r line; do
         # Clean up hostname
         display_name=$(echo "$hostname" | sed 's/\.islington\.local$//' | sed 's/\.local$//')
         
-        # Skip if display name is empty or just an IP
-        if [[ -n "$display_name" ]] && [[ ! "$display_name" =~ ^[0-9.]+$ ]]; then
+        # Skip if display name is empty, just an IP, or starts with ESP_ (too many ESP devices)
+        if [[ -n "$display_name" ]] && [[ ! "$display_name" =~ ^[0-9.]+$ ]] && [[ ! "$display_name" =~ ^ESP_ ]]; then
             services+=("$display_name|$ip")
             echo "[discovery] Found: $display_name ($ip)"
         fi
     fi
 done < <(grep "^Nmap scan report for" "${SCAN_FILE}")
 
-# Generate JSON
 echo "[discovery] Creating JSON with ${#services[@]} entries..."
 
-echo "[" > "${SERVICES_FILE}"
-for i in "${!services[@]}"; do
-    IFS='|' read -r name ip <<< "${services[$i]}"
-    
-    # Add comma if not first entry
-    if [[ $i -gt 0 ]]; then
-        echo "," >> "${SERVICES_FILE}"
+# Create a temporary file first
+TEMP_FILE=$(mktemp)
+trap "rm -f ${TEMP_FILE}" EXIT
+
+# Generate JSON more carefully
+{
+    echo "["
+    for i in "${!services[@]}"; do
+        IFS='|' read -r name ip <<< "${services[$i]}"
+        
+        # Escape any special characters in name
+        escaped_name=$(echo "$name" | sed 's/"/\\"/g')
+        
+        # Add comma if not first entry
+        if [[ $i -gt 0 ]]; then
+            echo ","
+        fi
+        
+        # Generate JSON entry without trailing comma
+        printf '  {\n    "title": "%s",\n    "url": "http://%s",\n    "group": "Discovered",\n    "desc": "Auto-discovered from network scan (%s)",\n    "tags": ["discovered", "nmap", "homelab"]\n  }' "$escaped_name" "$ip" "$ip"
+    done
+    echo
+    echo "]"
+} > "${TEMP_FILE}"
+
+# Validate JSON before moving
+if command -v jq >/dev/null 2>&1; then
+    if ! jq . "${TEMP_FILE}" >/dev/null 2>&1; then
+        echo "[discovery] ERROR: Generated invalid JSON"
+        cat "${TEMP_FILE}"
+        exit 1
     fi
-    
-    cat >> "${SERVICES_FILE}" << EOF
-  {
-    "title": "${name}",
-    "url": "http://${ip}",
-    "group": "Discovered",
-    "desc": "Auto-discovered from network scan (${ip})",
-    "tags": ["discovered", "nmap", "homelab"]
-  }EOF
-done
+fi
 
-echo >> "${SERVICES_FILE}"
-echo "]" >> "${SERVICES_FILE}"
+# Move to final location
+mv "${TEMP_FILE}" "${SERVICES_FILE}"
 
-# Set permissions
+# Set permissions (ignore errors if not running as root)
 chown nginx:nginx "${SERVICES_FILE}" 2>/dev/null || true
-chmod 644 "${SERVICES_FILE}"
+chmod 644 "${SERVICES_FILE}" 2>/dev/null || true
 
 echo "[discovery] Generated services.json with ${#services[@]} entries"
+echo "[discovery] File size: $(wc -c < "${SERVICES_FILE}") bytes"
