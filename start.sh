@@ -103,7 +103,22 @@ EODEBUG
 fi
 
 # Ensure all scripts are executable
+echo "[start] Making scripts executable..."
 chmod +x /usr/local/bin/scan.sh /usr/local/bin/parse-scan.sh /usr/local/bin/debug-parser.sh /usr/local/bin/start.sh 2>/dev/null || true
+
+# Verify scripts exist and are executable
+echo "[start] Checking script status..."
+for script in scan.sh parse-scan.sh debug-parser.sh; do
+    if [[ -f "/usr/local/bin/$script" ]]; then
+        if [[ -x "/usr/local/bin/$script" ]]; then
+            echo "[start] ✓ $script exists and is executable"
+        else
+            echo "[start] ⚠ $script exists but is not executable"
+        fi
+    else
+        echo "[start] ✗ $script not found"
+    fi
+done
 
 echo "[start] SUBNETS='${SUBNETS:-(default in scan.sh)}'"
 echo "[start] RUN_SCAN_ON_START='${RUN_SCAN_ON_START}'"
@@ -122,6 +137,15 @@ if [[ "${SCAN_INTERVAL}" =~ ^[1-9][0-9]*$ ]]; then
 elif [[ "${RUN_SCAN_ON_START}" == "1" ]]; then
   echo "[start] RUN_SCAN_ON_START=1 -> running initial scan..."
   /usr/local/bin/scan.sh || echo "[scanner] WARNING: initial scan failed (non-fatal)"
+fi
+
+# Test the parser once at startup to ensure it works
+echo "[start] Testing parser functionality..."
+if [[ -x /usr/local/bin/parse-scan.sh ]]; then
+    echo "[start] Parser script is executable, testing..."
+    /usr/local/bin/parse-scan.sh || echo "[start] Parser test failed (this is normal if no scan data exists yet)"
+else
+    echo "[start] ERROR: Parser script not executable!"
 fi
 
 echo "[start] Starting PHP-FPM..."
