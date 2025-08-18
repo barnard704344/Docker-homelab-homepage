@@ -422,7 +422,7 @@
       let portsHtml = '';
       if (link.ports && link.ports.length > 0) {
         const portButtons = link.ports.map(p => 
-          `<button class="port-btn" data-url="${p.url}" data-port="${p.port}" data-service="${p.service}" onclick="selectPort('${escapeHtml(link.title)}', '${p.port}', '${p.url}', '${p.service}')">${p.port}</button>`
+          `<button class="port-btn" data-url="${p.url}" data-port="${p.port}" data-service="${p.service}" data-title="${escapeHtml(link.title)}">${p.port}</button>`
         ).join('');
         portsHtml = `<div class="ports-section">Ports: ${portButtons}</div>`;
       }
@@ -451,16 +451,33 @@
         render();
       });
       
+      // Add port button handlers
+      const portBtns = card.querySelectorAll('.port-btn');
+      portBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const title = btn.dataset.title;
+          const port = btn.dataset.port;
+          const url = btn.dataset.url;
+          const service = btn.dataset.service;
+          selectPort(title, port, url, service);
+        });
+      });
+      
       return card;
     }
     
     // --- Port selection for discovered services
     function selectPort(serviceTitle, port, url, service) {
-      // Update the main URL for this service temporarily
-      const serviceIndex = services.findIndex(s => s.title === serviceTitle);
+      console.log('selectPort called:', { serviceTitle, port, url, service });
+      
+      // Update the main URL for this service temporarily in DYNAMIC_LINKS
+      const serviceIndex = DYNAMIC_LINKS.findIndex(s => s.title === serviceTitle);
       if (serviceIndex !== -1) {
-        services[serviceIndex].url = url;
-        services[serviceIndex].selectedPort = port;
+        DYNAMIC_LINKS[serviceIndex].url = url;
+        DYNAMIC_LINKS[serviceIndex].selectedPort = port;
+        
+        console.log('Updated service:', DYNAMIC_LINKS[serviceIndex]);
         
         // Update the card title link immediately
         const cards = document.querySelectorAll('.card');
@@ -479,6 +496,9 @@
             });
           }
         });
+      } else {
+        console.log('Service not found in DYNAMIC_LINKS:', serviceTitle);
+        console.log('Available services:', DYNAMIC_LINKS.map(s => s.title));
       }
     }
 
@@ -504,25 +524,32 @@
 
     function togglePin(title) {
       const pins = getPins();
-      const service = services.find(s => s.title === title);
       
       if (pins.find(p => p.title === title)) {
         // Remove from pins
         const newPins = pins.filter(p => p.title !== title);
         setPins(newPins);
-      } else if (service) {
-        // Add to pins with selected URL (if port was selected)
-        const pinData = {
-          title: service.title,
-          url: service.url, // This will be the selected port URL if one was chosen
-          group: 'Pinned',
-          desc: service.desc,
-          tags: ['pinned'],
-          selectedPort: service.selectedPort || null
-        };
+      } else {
+        // Find the service in either static or dynamic lists
+        const staticService = services.find(s => s.title === title);
+        const dynamicService = DYNAMIC_LINKS.find(s => s.title === title);
         
-        pins.push(pinData);
-        setPins(pins);
+        const service = staticService || dynamicService;
+        
+        if (service) {
+          // Add to pins with selected URL (if port was selected)
+          const pinData = {
+            title: service.title,
+            url: service.url, // This will be the selected port URL if one was chosen
+            group: 'Pinned',
+            desc: service.desc,
+            tags: ['pinned'],
+            selectedPort: service.selectedPort || null
+          };
+          
+          pins.push(pinData);
+          setPins(pins);
+        }
       }
     }
 
