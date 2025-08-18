@@ -80,12 +80,36 @@ while IFS= read -r line || [[ -n "$line" ]]; do
             echo "[discovery] Saved: $current_host ($current_ip) - Ports: $ports_str"
         fi
         
-        # IP-only host - we'll include it if it has web services
+        # IP-only host - try reverse DNS lookup
         ip="${BASH_REMATCH[1]}"
-        current_host="$ip"  # Use IP as the display name
-        current_ip="$ip"
+        
+        echo "[discovery] Found IP-only host: $ip, attempting reverse DNS lookup..."
+        
+        # Try reverse DNS lookup using nslookup or dig
+        hostname=""
+        if command -v nslookup >/dev/null 2>&1; then
+            hostname=$(nslookup "$ip" 2>/dev/null | awk '/name =/ {print $4}' | sed 's/\.$//' | head -1)
+        elif command -v dig >/dev/null 2>&1; then
+            hostname=$(dig -x "$ip" +short 2>/dev/null | sed 's/\.$//' | head -1)
+        elif command -v host >/dev/null 2>&1; then
+            hostname=$(host "$ip" 2>/dev/null | awk '{print $5}' | sed 's/\.$//' | head -1)
+        fi
+        
+        # Use hostname if found, otherwise use IP
+        if [[ -n "$hostname" ]] && [[ "$hostname" != "$ip" ]] && [[ ! "$hostname" =~ ^[0-9.]+$ ]]; then
+            # Clean up hostname
+            display_name=$(echo "$hostname" | sed 's/\.islington\.local$//' | sed 's/\.local$//')
+            current_host="$display_name"
+            current_ip="$ip"
+            echo "[discovery] Resolved $ip to: $display_name"
+        else
+            current_host="$ip"  # Use IP as the display name
+            current_ip="$ip"
+            echo "[discovery] No hostname found for $ip, using IP address"
+        fi
+        
         current_ports=()
-        echo "[discovery] Processing IP-only host: $ip"
+        echo "[discovery] Processing IP-only host: $current_host ($ip)"
         
     elif [[ -n "$current_host" ]] && [[ $line =~ ^([0-9]+)/tcp[[:space:]]+open[[:space:]]+([^[:space:]]+) ]]; then
         # Found an open port for current host
@@ -190,13 +214,17 @@ echo "[discovery] Creating JSON file..."
                 case $first_service in
                     http*) service_type="Web Server" ;;
                     https*) service_type="Secure Web Server" ;;
-                    *) service_type="Service" ;;
+                    ssh) service_type="SSH Server" ;;
+                    *) service_type="Network Device" ;;
                 esac
                 
                 escaped_name="$service_type ($name)"
             else
                 escaped_name="Device ($name)"
             fi
+        else
+            # This is a named host (either original or resolved via DNS)
+            escaped_name=$(echo "$name" | sed 's/"/\\"/g')
         fi
         
         printf '  {\n    "title": "%s",\n    "url": "%s",\n    "group": "Discovered",\n    "desc": "%s",\n    "tags": ["discovered", "nmap"]\n  }' "$escaped_name" "$primary_url" "$escaped_desc"
