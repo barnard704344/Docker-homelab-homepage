@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Homelab • Start</title>
+  <style>
+    /* (styling from previous version unchanged) */
+  </style>
+</head>
+<body>
+  <header>…</header>
+  <main>
+    <div class="toolbar">…</div>
+    <div id="grid" class="grid" aria-live="polite"></div>
+    <footer class="muted"><p>Tip: pin your most used services…</p></footer>
+  </main>
+
+  <script>
+  // --- STATIC LINKS (your own curated list)
+  const LINKS = [
+    { title: "Proxmox", url: "https://proxmox.local:8006", group: "Core", desc: "Hypervisor cluster", tags:["vm","cluster"], statusPath:"/" },
+    { title: "Portainer", url: "https://portainer.local", group: "Core", desc: "Docker UI", tags:["docker"], statusPath:"/" },
+    // add more manually curated ones here
+  ];
+
+  // --- DYNAMIC LINKS from scanner
+  let DYNAMIC_LINKS = [];
+
+  async function loadDynamicLinks() {
+    try {
+      const res = await fetch('services.json?ts=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) throw new Error('no manifest');
+      const data = await res.json();
+      const incoming = Array.isArray(data) ? data : (Array.isArray(data.links) ? data.links : []);
+      DYNAMIC_LINKS = sanitizeLinks(incoming);
+    } catch {
+      DYNAMIC_LINKS = [];
+    }
+  }
+
+  function sanitizeLinks(arr) {
+    return arr.filter(x => x && x.title && x.url)
+      .map(x => ({
+        title: String(x.title),
+        url: String(x.url),
+        group: x.group ? String(x.group) : 'Discovered',
+        desc: x.desc ? String(x.desc) : '',
+        tags: Array.isArray(x.tags) ? x.tags.map(String) : [],
+        statusPath: x.statusPath ? String(x.statusPath) : '/'
+      }));
+  }
+
+  function mergedLinks() {
+    const seen = new Set(), out = [];
+    const all = [...LINKS, ...DYNAMIC_LINKS];
+    for (const l of all) {
+      const urlKey = (l.url||'').toLowerCase();
+      const titleKey = (l.title||'').toLowerCase();
+      const key = urlKey || ('title:' + titleKey);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(l);
+    }
+    return out;
+  }
+
+  // render(), groupsFromLinks(), favicon helpers, etc. (same as before) …
+
+  function render(filterPinned=false) {
+    grid.innerHTML='';
+    const term = (q.value||'').trim().toLowerCase();
+    let links = mergedLinks();
+
+    if(term) {
+      links = links.filter(l =>
+        (l.title||'').toLowerCase().includes(term) ||
+        (l.desc||'').toLowerCase().includes(term) ||
+        (l.tags||[]).join(',').toLowerCase().includes(term) ||
+        (()=>{ try { return new URL(l.url).hostname.toLowerCase().includes(term); } catch { return false; } })()
+      );
+    }
+
+    if(filterPinned) {
+      const pins=new Set(getPins());
+      links = links.filter(l=>pins.has(l.title));
+    }
+
+    const groups = groupsFromLinks(links);
+    for(const [name, arr] of groups) { grid.appendChild(groupPanel(name, arr)); }
+  }
+
+  // boot
+  (async () => {
+    await loadDynamicLinks();
+    render(false);
+    checkVisible();
+  })();
+  </script>
+</body>
+</html>

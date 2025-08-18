@@ -1,0 +1,16 @@
+# port,scheme,tag,desc
+80,http,web,HTTP
+443,https,web,HTTPS
+8006,https,vm,Proxmox
+8080,http,web,HTTP-alt
+8443,https,web,HTTPS-alt
+32400,https,media,Plex
+9090,http,metrics,Prometheus
+9093,http,alerts,Alertmanager
+9000,https,docker,Portainer
+3000,https,metrics,Grafana
+3001,https,metrics,Grafana-alt
+32168,http,ai,CodeProject.AI
+8123,https,home,Home Assistant
+5601,https,search,Kibana
+9200,http,search,Elasticsearch
