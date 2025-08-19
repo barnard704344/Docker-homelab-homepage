@@ -60,6 +60,16 @@ fi
 chown -R nginx:nginx /var/www/site/scan
 chmod 755 /var/www/site/scan
 
+# Create compatibility symlinks from old scan directory to persistent data if volume is mounted
+if [[ -d /var/www/site/data ]]; then
+    echo "[start] Creating compatibility symlinks for old scan URLs..."
+    # Ensure old scan directory exists and link to persistent data
+    mkdir -p /var/www/site/scan
+    ln -sf /var/www/site/data/scan/last-scan.txt /var/www/site/scan/last-scan.txt 2>/dev/null || true
+    ln -sf /var/www/site/data/services.json /var/www/site/services.json 2>/dev/null || true
+    echo "[start] ✓ Compatibility symlinks created"
+fi
+
 # Create debug script if it doesn't exist
 if [[ ! -f /usr/local/bin/debug-parser.sh ]]; then
     echo "[start] Creating debug parser script..."

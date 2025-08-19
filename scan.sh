@@ -59,10 +59,15 @@ done
 echo >> "${OUTFILE}"
 echo "Done." >> "${OUTFILE}"
 
-# Convenience symlink
+# Convenience symlinks for both old and new locations
 ln -sf "${OUTFILE}" /var/www/site/scan.txt
 # Also create a symlink in the persistent directory for easy access
 ln -sf "${OUTFILE}" /var/www/site/data/scan.txt
+
+# Create compatibility symlinks from old scan directory to persistent location
+mkdir -p /var/www/site/scan
+ln -sf "${OUTFILE}" /var/www/site/scan/last-scan.txt
+ln -sf "${OUTFILE}" /var/www/site/scan.txt
 
 echo "[scanner] OK: wrote ${OUTFILE}"
 
