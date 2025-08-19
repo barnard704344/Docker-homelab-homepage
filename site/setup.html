@@ -288,15 +288,7 @@
         <!-- Categories Management -->
         <div class="section">
             <h2>📁 Manage Categories</h2>
-            <p>Rename existing categories or create new ones. Services will be automatically reassigned when you rename categories.</p>
-            
-            <div class="inline-form">
-                <div class="form-group">
-                    <label for="new-category-name">Add New Category</label>
-                    <input type="text" id="new-category-name" placeholder="e.g., Media Servers, Development Tools">
-                </div>
-                <button class="btn primary" onclick="addCategory()">➕ Add Category</button>
-            </div>
+            <p>Rename existing categories to organize your services.</p>
             
             <div id="categories-list" class="category-list">
                 <!-- Categories will be loaded here -->
@@ -443,31 +435,6 @@
             });
         }
         
-        // Add new category
-        function addCategory() {
-            const input = document.getElementById('new-category-name');
-            const name = input.value.trim();
-            
-            if (!name) {
-                showStatus('Please enter a category name', 'error');
-                return;
-            }
-            
-            const key = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-            
-            if (categories[key]) {
-                showStatus('Category already exists', 'error');
-                return;
-            }
-            
-            categories[key] = name;
-            input.value = '';
-            
-            renderCategories();
-            updateCategorySelects();
-            showStatus('Category added successfully', 'success');
-        }
-        
         // Update category name
         function updateCategory(key, newName) {
             if (newName.trim()) {
@@ -609,6 +576,7 @@
         function resetToDefaults() {
             if (confirm('Are you sure you want to reset all categories and assignments to defaults? This cannot be undone.')) {
                 categories = {
+                    'network': 'Network',
                     'media': 'Media',
                     'home-automation': 'Home Automation', 
                     'web-service': 'Web Service',

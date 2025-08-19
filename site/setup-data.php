@@ -26,6 +26,7 @@ if (!is_writable('/var/www/site/data')) {
 
 // Default categories
 $defaultCategories = [
+    'network' => 'Network',
     'media' => 'Media',
     'home-automation' => 'Home Automation',
     'web-service' => 'Web Service', 
