@@ -18,14 +18,24 @@ mkdir -p ./data
 # Try to set nginx permissions (works on most systems)
 if command -v sudo >/dev/null 2>&1; then
     echo "Setting permissions using sudo..."
+    # Try multiple strategies to ensure permissions work
     sudo chown -R 82:82 ./data 2>/dev/null || \
     sudo chown -R 33:33 ./data 2>/dev/null || \
-    sudo chown -R www-data:www-data ./data 2>/dev/null || \
-    echo "Could not set user permissions, trying generic permissions..."
+    sudo chown -R www-data:www-data ./data 2>/dev/null || true
+    
+    # Also set broader permissions to ensure container can write
     sudo chmod -R 777 ./data
+    echo "Applied chmod 777 to data directory for maximum compatibility"
 else
     echo "No sudo available, setting generic permissions..."
     chmod -R 777 ./data 2>/dev/null || true
+fi
+
+# Double-check the data directory is accessible
+if [[ -d ./data ]]; then
+    echo "Data directory exists and has permissions: $(ls -ld ./data)"
+else
+    echo "WARNING: Data directory does not exist after creation attempt"
 fi
 
 echo "Stopping existing container..."
