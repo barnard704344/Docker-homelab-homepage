@@ -117,6 +117,9 @@ fi
 echo "[start] Making scripts executable..."
 chmod +x /usr/local/bin/scan.sh /usr/local/bin/parse-scan.sh /usr/local/bin/debug-parser.sh /usr/local/bin/start.sh 2>/dev/null || true
 
+# Also ensure any PHP scripts are accessible
+chmod +x /var/www/site/run-scan.php /var/www/site/debug.php 2>/dev/null || true
+
 # Verify scripts exist and are executable
 echo "[start] Checking script status..."
 for script in scan.sh parse-scan.sh debug-parser.sh; do

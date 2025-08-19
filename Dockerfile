@@ -23,7 +23,8 @@ COPY debug.php /var/www/site/debug.php
 
 # Make scripts executable and create symlinks for easier access
 RUN chmod +x /usr/local/bin/scan.sh /usr/local/bin/parse-scan.sh /usr/local/bin/start.sh && \
-    ln -sf /usr/local/bin/scan.sh /opt/scan.sh
+    ln -sf /usr/local/bin/scan.sh /opt/scan.sh && \
+    chmod +x /var/www/site/run-scan.php /var/www/site/debug.php || true
 
 # Configure PHP-FPM
 RUN sed -i 's/listen = 127.0.0.1:9000/listen = 9000/' /etc/php82/php-fpm.d/www.conf && \
