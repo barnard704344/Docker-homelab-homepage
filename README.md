@@ -4,9 +4,100 @@
 
 A lightweight **network‑scanning homepage** for your homelab.  
 Served by **Nginx** with **PHP-FPM**, featuring an interactive homepage with service liTail container logs:
+# Homelab Homepage
+
+A lightweight Docker container that provides an interactive homepage for your homelab with automatic network service discovery.
+
+## Features
+
+- **Interactive Homepage**: Clean web interface with service cards, search, and status monitoring
+- **Network Scanning**: Automatic nmap-based discovery of web services on your network
+- **Port Detection**: Shows all open ports for discovered services with clickable port buttons
+- **Service Pinning**: Pin your favorite services - pins are stored server-side and sync across browsers
+- **On-Demand Scanning**: Trigger network scans from the web interface
+- **Reverse DNS**: Shows hostnames for discovered devices
+- **Status Monitoring**: Live service availability indicators
+
+## Quick Start
+
+1. **Clone and build:**
 ```bash
-docker logs -f homepage
+git clone https://github.com/barnard704344/Docker-homelab-homepage.git
+cd Docker-homelab-homepage
+docker build -t homepage .
 ```
+
+2. **Run with host networking (recommended):**
+```bash
+docker run -d 
+  --name homepage 
+  --network host 
+  -e SUBNETS="192.168.1.0/24" 
+  -e SCAN_INTERVAL=10 
+  homepage
+```
+
+3. **Access at:** `http://localhost/` or `http://<your-server-ip>/`
+
+## Configuration
+
+Environment variables:
+- `SUBNETS`: Networks to scan (default: `192.168.1.0/24`)
+- `SCAN_INTERVAL`: Minutes between automatic scans (optional)
+
+Multiple networks:
+```bash
+-e SUBNETS="192.168.1.0/24 10.0.1.0/24"
+```
+
+## Usage
+
+### Web Interface
+- **Search**: Press `/` or use search box
+- **Pin Services**: Click 📌 to pin frequently used services
+- **Port Selection**: Click port numbers to use specific ports for services
+- **Run Scans**: Use "🔍 Run Scan" button to discover new services
+- **View Scans**: Access scan results via "Network Scan" links
+
+### Port Scanning
+The scanner now detects **all ports** (top 10,000) instead of just web ports. All discovered ports are shown as clickable buttons on each service card.
+
+### Service Discovery
+- Automatically finds web services on your network
+- Shows services with hostnames (skips IP-only devices)
+- Creates clickable service cards with all available ports
+- Updates after each scan completes
+
+## Maintenance
+
+**Rebuild after updates:**
+```bash
+git pull
+./rebuild.sh  # or manually stop/rm/build/run
+```
+
+**Debug scan issues:**
+```bash
+curl http://localhost/debug.php
+docker logs homepage
+```
+
+**Manual scan:**
+```bash
+docker exec homepage /usr/local/bin/scan.sh
+```
+
+## File Structure
+
+- `site/index.html` - Main homepage interface
+- `site/pins.php` - Server-side pin storage API
+- `scan.sh` - Network scanning script (nmap with top 10k ports)
+- `parse-scan.sh` - Converts scan results to JSON with port data
+- `Dockerfile` - Alpine Linux with nginx, PHP-FPM, nmap
+
+## License
+
+MIT
 
 Confirm it's running:
 ```bash
