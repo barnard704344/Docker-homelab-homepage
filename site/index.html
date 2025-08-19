@@ -760,63 +760,73 @@
           if (status.includes('running') || status.includes('scanning')) {
             scanStatusBtn.textContent = '⏳ Scanning...';
             scanStatusBtn.classList.add('active');
-          } else {
-            // Check when last scan was run
-            try {
-              const scanResponse = await fetch('/scan.txt', { method: 'HEAD', cache: 'no-cache' });
-              if (scanResponse.ok) {
-                const lastModified = scanResponse.headers.get('last-modified');
-                if (lastModified) {
-                  const scanTime = new Date(lastModified);
-                  const now = new Date();
-                  const minutesAgo = Math.floor((now - scanTime) / (1000 * 60));
-                  
-                  if (minutesAgo < 1) {
-                    scanStatusBtn.textContent = '✅ Just Scanned';
-                  } else if (minutesAgo < 60) {
-                    scanStatusBtn.textContent = `🔍 ${minutesAgo}m ago`;
-                  } else {
-                    const hoursAgo = Math.floor(minutesAgo / 60);
-                    scanStatusBtn.textContent = `🔍 ${hoursAgo}h ago`;
-                  }
-                }
-              } else {
-                scanStatusBtn.textContent = '🔍 No Scans Yet';
+            return;
+          }
+        }
+        
+        // Not currently scanning, check scan file status
+        let scanFound = false;
+        let scanTime = null;
+        
+        // Try multiple scan file locations
+        const scanPaths = ['/scan.txt', '/scan/last-scan.txt', '/data/scan.txt', '/data/scan/last-scan.txt'];
+        
+        for (const path of scanPaths) {
+          try {
+            const scanResponse = await fetch(path, { method: 'HEAD', cache: 'no-cache' });
+            if (scanResponse.ok) {
+              const lastModified = scanResponse.headers.get('last-modified');
+              if (lastModified) {
+                scanTime = new Date(lastModified);
+                scanFound = true;
+                break;
               }
-            } catch (e) {
-              scanStatusBtn.textContent = '🔍 Scan Status';
             }
-            scanStatusBtn.classList.remove('active');
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        if (scanFound && scanTime) {
+          const now = new Date();
+          const minutesAgo = Math.floor((now - scanTime) / (1000 * 60));
+          
+          if (minutesAgo < 1) {
+            scanStatusBtn.textContent = '✅ Just Scanned';
+          } else if (minutesAgo < 60) {
+            scanStatusBtn.textContent = `🔍 ${minutesAgo}m ago`;
+          } else {
+            const hoursAgo = Math.floor(minutesAgo / 60);
+            scanStatusBtn.textContent = `🔍 ${hoursAgo}h ago`;
           }
         } else {
-          scanStatusBtn.textContent = '🔍 Status Unknown';
-          scanStatusBtn.classList.remove('active');
-        }
-      } catch (error) {
-        // Fallback: check scan file age
-        try {
-          const scanResponse = await fetch('/scan.txt', { method: 'HEAD', cache: 'no-cache' });
-          if (scanResponse.ok) {
-            const lastModified = scanResponse.headers.get('last-modified');
-            if (lastModified) {
-              const scanTime = new Date(lastModified);
-              const now = new Date();
-              const minutesAgo = Math.floor((now - scanTime) / (1000 * 60));
-              
-              if (minutesAgo < 2) {
-                scanStatusBtn.textContent = '✅ Just Scanned';
-              } else if (minutesAgo < 60) {
-                scanStatusBtn.textContent = `🔍 ${minutesAgo}m ago`;
-              } else {
-                scanStatusBtn.textContent = `🔍 ${Math.floor(minutesAgo / 60)}h ago`;
-              }
-            }
+          // No scan found - could be new container or waiting for first scan
+          // Check if we just loaded the page (likely after rebuild)
+          const pageLoadTime = sessionStorage.getItem('pageLoadTime');
+          const currentTime = Date.now();
+          
+          if (!pageLoadTime) {
+            sessionStorage.setItem('pageLoadTime', currentTime.toString());
+          }
+          
+          const timeSinceLoad = (currentTime - (pageLoadTime ? parseInt(pageLoadTime) : currentTime)) / 1000 / 60;
+          
+          // If page loaded recently (< 15 minutes) and no scans exist, likely waiting for first scan
+          if (timeSinceLoad < 15) {
+            scanStatusBtn.textContent = '⏳ Scanning...';
+            scanStatusBtn.classList.add('active');
           } else {
             scanStatusBtn.textContent = '🔍 No Scans Yet';
+            scanStatusBtn.classList.remove('active');
           }
-        } catch (e) {
-          scanStatusBtn.textContent = '🔍 Scan Status';
+          return;
         }
+        
+        scanStatusBtn.classList.remove('active');
+        
+      } catch (error) {
+        // Ultimate fallback
+        scanStatusBtn.textContent = '🔍 Scan Status';
         scanStatusBtn.classList.remove('active');
       }
     }
