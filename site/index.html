@@ -514,7 +514,7 @@
       return div.innerHTML;
     }
 
-    // --- Pin management with port-specific URLs
+    // --- Pin management with server synchronization
     function getPins() {
       try {
         return JSON.parse(localStorage.getItem('pinnedServices') || '[]');
@@ -525,6 +525,40 @@
 
     function setPins(pins) {
       localStorage.setItem('pinnedServices', JSON.stringify(pins));
+      // Also sync to server
+      syncPinsToServer(pins);
+    }
+
+    async function syncPinsToServer(pins) {
+      try {
+        await fetch('pins.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'sync', pins: pins })
+        });
+      } catch (error) {
+        console.log('Note: Could not sync pins to server:', error.message);
+      }
+    }
+
+    async function loadPinsFromServer() {
+      try {
+        const response = await fetch('pins.php');
+        if (response.ok) {
+          const serverPins = await response.json();
+          if (serverPins.length > 0) {
+            // If server has pins and localStorage is empty, use server pins
+            const localPins = getPins();
+            if (localPins.length === 0) {
+              localStorage.setItem('pinnedServices', JSON.stringify(serverPins));
+              return serverPins;
+            }
+          }
+        }
+      } catch (error) {
+        console.log('Note: Could not load pins from server:', error.message);
+      }
+      return getPins();
     }
 
     function togglePin(title) {
@@ -747,6 +781,7 @@
 
     // --- Initialize app
     (async () => {
+      await loadPinsFromServer(); // Load pins from server first
       await loadDynamicLinks();
       render();
     })();
