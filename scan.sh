@@ -77,6 +77,28 @@ echo "[scanner] OK: wrote ${OUTFILE}"
 
 # Parse scan results for service discovery
 echo "[scanner] Parsing scan results for service discovery..."
+
+# Ensure the data directory has proper permissions before parsing
+echo "[scanner] Setting permissions for parser output..."
+chown -R nginx:nginx /var/www/site/data 2>/dev/null || true
+chmod -R 755 /var/www/site/data 2>/dev/null || true
+
+# Test write permissions
+if ! touch /var/www/site/data/services.json.test 2>/dev/null; then
+    echo "[scanner] WARNING: Cannot write to data directory, trying chmod 777..."
+    chmod -R 777 /var/www/site/data 2>/dev/null || true
+    if ! touch /var/www/site/data/services.json.test 2>/dev/null; then
+        echo "[scanner] ERROR: Still cannot write to data directory!"
+        ls -la /var/www/site/data/ || true
+    else
+        rm -f /var/www/site/data/services.json.test
+        echo "[scanner] Write permissions fixed with chmod 777"
+    fi
+else
+    rm -f /var/www/site/data/services.json.test
+    echo "[scanner] Write permissions OK"
+fi
+
 if [[ -x /usr/local/bin/parse-scan.sh ]]; then
     /usr/local/bin/parse-scan.sh || echo "[scanner] WARNING: service discovery failed (non-fatal)"
 else
