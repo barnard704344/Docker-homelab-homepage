@@ -1,9 +1,3 @@
-# Homelab Homepage (Docker)
-
-> **🚀 Quick Start Guide**: New to this project? Check out [QUICKSTART.md](QUICKSTART.md) for a simple 5-minute setup!
-
-A lightweight **network‑scanning homepage** for your homelab.  
-Served by **Nginx** with **PHP-FPM**, featuring an interactive homepage with service liTail container logs:
 # Homelab Homepage
 
 A lightweight Docker container that provides an interactive homepage for your homelab with automatic network service discovery.
