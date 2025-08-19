@@ -317,6 +317,7 @@
       const seen = new Set();
       const out = [];
       const pinned = getPins(); // Get pinned services as objects
+      const selectedPorts = getSelectedPorts(); // Get selected ports
       const all = [...LINKS, ...DYNAMIC_LINKS, ...pinned];
       
       for (const link of all) {
@@ -326,6 +327,17 @@
         
         if (!key || seen.has(key)) continue;
         seen.add(key);
+        
+        // Apply stored port selection to this link
+        const selectedPort = selectedPorts[link.title];
+        if (selectedPort && link.ports) {
+          const portData = link.ports.find(p => p.port === selectedPort.port);
+          if (portData) {
+            link.url = portData.url;
+            link.selectedPort = selectedPort.port;
+          }
+        }
+        
         out.push(link);
       }
       
@@ -387,21 +399,35 @@
       
       const isPinned = getPins().some(p => p.title === link.title);
       const faviconUrl = getFaviconUrl(link.url);
+      const selectedPorts = getSelectedPorts();
+      const selectedPort = selectedPorts[link.title];
+      
+      // Apply stored port selection
+      let displayUrl = link.url;
+      if (selectedPort && link.ports) {
+        // Find the selected port in the ports array and use its URL
+        const portData = link.ports.find(p => p.port === selectedPort.port);
+        if (portData) {
+          displayUrl = portData.url;
+        }
+      }
       
       // Build ports section if available
       let portsHtml = '';
       if (link.ports && link.ports.length > 0) {
-        const portButtons = link.ports.map(p => 
-          `<button class="port-btn" data-url="${p.url}" data-port="${p.port}" data-service="${p.service}" data-title="${escapeHtml(link.title)}">${p.port}</button>`
-        ).join('');
+        const portButtons = link.ports.map(p => {
+          const isSelected = selectedPort && selectedPort.port === p.port;
+          const selectedClass = isSelected ? 'selected' : '';
+          return `<button class="port-btn ${selectedClass}" data-url="${p.url}" data-port="${p.port}" data-service="${p.service}" data-title="${escapeHtml(link.title)}">${p.port}</button>`;
+        }).join('');
         portsHtml = `<div class="ports-section">Ports: ${portButtons}</div>`;
       }
       
       card.innerHTML = `
         <div class="card-header">
           ${faviconUrl ? `<img src="${faviconUrl}" width="16" height="16" alt="" style="display: inline-block;" onerror="this.style.display='none'">` : '<span style="width:16px;height:16px;display:inline-block;"></span>'}
-          <a href="${link.url}" class="card-title" target="_blank" rel="noopener">${escapeHtml(link.title)}</a>
-          <div class="status-dot" data-url="${link.url}" data-path="${link.statusPath}"></div>
+          <a href="${displayUrl}" class="card-title" target="_blank" rel="noopener">${escapeHtml(link.title)}</a>
+          <div class="status-dot" data-url="${displayUrl}" data-path="${link.statusPath}"></div>
         </div>
         ${link.desc ? `<div class="card-desc">${escapeHtml(link.desc)}</div>` : ''}
         ${portsHtml}
@@ -437,39 +463,94 @@
       return card;
     }
     
+    // --- Port selection storage functions
+    function getSelectedPorts() {
+      try {
+        return JSON.parse(localStorage.getItem('selectedPorts') || '{}');
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function setSelectedPort(serviceTitle, port, url) {
+      const selected = getSelectedPorts();
+      selected[serviceTitle] = { port, url };
+      localStorage.setItem('selectedPorts', JSON.stringify(selected));
+      // Also sync to server
+      syncPortSelectionsToServer(selected);
+    }
+
+    function removeSelectedPort(serviceTitle) {
+      const selected = getSelectedPorts();
+      delete selected[serviceTitle];
+      localStorage.setItem('selectedPorts', JSON.stringify(selected));
+      syncPortSelectionsToServer(selected);
+    }
+
+    async function syncPortSelectionsToServer(selections) {
+      try {
+        await fetch('port-selections.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'sync', selections: selections })
+        });
+      } catch (error) {
+        console.log('Note: Could not sync port selections to server:', error.message);
+      }
+    }
+
+    async function loadPortSelectionsFromServer() {
+      try {
+        const response = await fetch('port-selections.php');
+        if (response.ok) {
+          const serverSelections = await response.json();
+          if (Object.keys(serverSelections).length > 0) {
+            // Merge server selections with local ones
+            const localSelections = getSelectedPorts();
+            const merged = { ...serverSelections, ...localSelections };
+            localStorage.setItem('selectedPorts', JSON.stringify(merged));
+            return merged;
+          }
+        }
+      } catch (error) {
+        console.log('Note: Could not load port selections from server:', error.message);
+      }
+      return getSelectedPorts();
+    }
+
     // --- Port selection for discovered services
     function selectPort(serviceTitle, port, url, service) {
       console.log('selectPort called:', { serviceTitle, port, url, service });
       
-      // Update the main URL for this service temporarily in DYNAMIC_LINKS
-      const serviceIndex = DYNAMIC_LINKS.findIndex(s => s.title === serviceTitle);
-      if (serviceIndex !== -1) {
-        DYNAMIC_LINKS[serviceIndex].url = url;
-        DYNAMIC_LINKS[serviceIndex].selectedPort = port;
+      const selected = getSelectedPorts();
+      
+      // Check if this port is already selected for this service
+      if (selected[serviceTitle] && selected[serviceTitle].port === port) {
+        // Unselect the port
+        removeSelectedPort(serviceTitle);
         
-        console.log('Updated service:', DYNAMIC_LINKS[serviceIndex]);
-        
-        // Update the card title link immediately
-        const cards = document.querySelectorAll('.card');
-        cards.forEach(card => {
-          const titleLink = card.querySelector('.card-title');
-          if (titleLink && titleLink.textContent === serviceTitle) {
-            titleLink.href = url;
-            
-            // Update port button states
-            const portBtns = card.querySelectorAll('.port-btn');
-            portBtns.forEach(btn => {
-              btn.classList.remove('selected');
-              if (btn.dataset.port === port) {
-                btn.classList.add('selected');
-              }
-            });
-          }
-        });
+        // Revert to original URL (first port or default)
+        const serviceIndex = DYNAMIC_LINKS.findIndex(s => s.title === serviceTitle);
+        if (serviceIndex !== -1 && DYNAMIC_LINKS[serviceIndex].ports && DYNAMIC_LINKS[serviceIndex].ports.length > 0) {
+          DYNAMIC_LINKS[serviceIndex].url = DYNAMIC_LINKS[serviceIndex].ports[0].url;
+          DYNAMIC_LINKS[serviceIndex].selectedPort = null;
+        }
       } else {
-        console.log('Service not found in DYNAMIC_LINKS:', serviceTitle);
-        console.log('Available services:', DYNAMIC_LINKS.map(s => s.title));
+        // Select this port
+        setSelectedPort(serviceTitle, port, url);
+        
+        // Update the main URL for this service
+        const serviceIndex = DYNAMIC_LINKS.findIndex(s => s.title === serviceTitle);
+        if (serviceIndex !== -1) {
+          DYNAMIC_LINKS[serviceIndex].url = url;
+          DYNAMIC_LINKS[serviceIndex].selectedPort = port;
+        }
       }
+      
+      console.log('Updated selections:', getSelectedPorts());
+      
+      // Re-render to update UI
+      render();
     }
 
     // --- Escape HTML
@@ -528,6 +609,7 @@
 
     function togglePin(title) {
       const pins = getPins();
+      const selectedPorts = getSelectedPorts();
       
       if (pins.find(p => p.title === title)) {
         // Remove from pins
@@ -541,14 +623,25 @@
         const service = staticService || dynamicService;
         
         if (service) {
-          // Add to pins with selected URL (if port was selected)
+          // Use selected port URL if one is chosen, otherwise use default URL
+          let pinUrl = service.url;
+          if (selectedPorts[title] && service.ports) {
+            // Find the selected port data and use its URL
+            const selectedPortData = service.ports.find(p => p.port === selectedPorts[title].port);
+            if (selectedPortData) {
+              pinUrl = selectedPortData.url;
+            }
+          }
+          
+          // Add to pins with selected URL
           const pinData = {
             title: service.title,
-            url: service.url, // This will be the selected port URL if one was chosen
+            url: pinUrl,
             group: 'Pinned',
             desc: service.desc,
             tags: ['pinned'],
-            selectedPort: service.selectedPort || null
+            ports: service.ports || [], // Include ports for consistency
+            selectedPort: selectedPorts[title] ? selectedPorts[title].port : null
           };
           
           pins.push(pinData);
@@ -744,6 +837,7 @@
     // --- Initialize app
     (async () => {
       await loadPinsFromServer(); // Load pins from server first
+      await loadPortSelectionsFromServer(); // Load port selections from server
       await loadDynamicLinks();
       render();
       
