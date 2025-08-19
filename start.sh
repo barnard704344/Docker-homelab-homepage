@@ -31,25 +31,29 @@ chmod -R 755 /var/www/site
 if [[ -d /var/www/site/data ]]; then
     echo "[start] Setting up persistent data directory permissions..."
     chown -R nginx:nginx /var/www/site/data
-    chmod -R 755 /var/www/site/data
+    # Use 777 permissions to ensure PHP-FPM can write (category management needs this)
+    chmod -R 777 /var/www/site/data
     # Ensure scan subdirectory is writable
     mkdir -p /var/www/site/data/scan
     chown -R nginx:nginx /var/www/site/data/scan
-    chmod -R 755 /var/www/site/data/scan
-    echo "[start] ✓ Persistent data directory configured"
+    chmod -R 777 /var/www/site/data/scan
+    echo "[start] ✓ Persistent data directory configured with 777 permissions"
     
     # Test if we can actually write to it
     if touch /var/www/site/data/test-write 2>/dev/null; then
         rm -f /var/www/site/data/test-write
         echo "[start] ✓ Write test successful"
     else
-        echo "[start] ❌ Write test failed - attempting to fix with broader permissions"
-        chmod -R 777 /var/www/site/data
+        echo "[start] ❌ Write test failed - volume mount may have permission issues"
+        echo "[start] Attempting additional permission fixes..."
+        chmod 777 /var/www/site/data
+        mkdir -p /var/www/site/data
+        chmod 777 /var/www/site/data
         if touch /var/www/site/data/test-write 2>/dev/null; then
             rm -f /var/www/site/data/test-write
-            echo "[start] ✓ Write test successful after chmod 777"
+            echo "[start] ✓ Write test successful after additional fixes"
         else
-            echo "[start] ❌ Write test still failing - volume mount may have issues"
+            echo "[start] ❌ Write test still failing - this may affect category management"
         fi
     fi
 else
