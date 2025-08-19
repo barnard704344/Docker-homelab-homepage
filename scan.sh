@@ -19,7 +19,7 @@ OUTFILE="${OUTDIR}/last-scan.txt"
   echo "Date: ${TIMESTAMP}"
   echo "Subnets: ${SUBNETS}"
   echo
-  echo "Open ports (top 1000) per host"
+  echo "Open ports (top 10000) per host"
   echo "--------------------------------"
 } >> "${OUTFILE}"
 
@@ -41,10 +41,11 @@ for NET in ${SUBNETS}; do
     echo "Starting nmap scan..."
   } >> "${OUTFILE}"
 
-  # Basic TCP scan with faster timing and reduced port range for testing
-  # Use -T4 (aggressive timing), -F (fast scan - top 100 ports), --host-timeout for faster results
+  # Comprehensive TCP scan with extended port range
+  # Use -T4 (aggressive timing), -p- (all ports 1-65535) or -p1-10000 for faster scan
   # Add -R for reverse DNS lookups to get hostnames for IP-only devices
-  if ! timeout 300 nmap -T4 -F -Pn -R --host-timeout 60s "${NET}" >> "${OUTFILE}" 2>&1; then
+  # --top-ports 10000 scans the most common 10000 ports instead of all 65535 for better performance
+  if ! timeout 600 nmap -T4 --top-ports 10000 -Pn -R --host-timeout 120s "${NET}" >> "${OUTFILE}" 2>&1; then
     echo "[!] nmap failed or timed out for ${NET}" >> "${OUTFILE}"
   fi
   
