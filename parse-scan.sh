@@ -215,10 +215,125 @@ echo "[discovery] Creating JSON file..."
                         995)
                             available_ports+=("995:pop3s://$ip:995")
                             ;;
-                        3128)
-                            available_ports+=("3128:http://$ip:3128")
+                        2375|2376)
+                            # Docker API
+                            available_ports+=("$port:http://$ip:$port")
+                            if [[ "$primary_url" == "http://$ip" ]]; then
+                                primary_url="http://$ip:$port"
+                            fi
                             ;;
-                        *) 
+                        4200)
+                            # Angular dev server
+                            available_ports+=("$port:http://$ip:$port")
+                            if [[ "$primary_url" == "http://$ip" ]]; then
+                                primary_url="http://$ip:$port"
+                            fi
+                            ;;
+                        7000)
+                            # Various dev services
+                            available_ports+=("$port:http://$ip:$port")
+                            if [[ "$primary_url" == "http://$ip" ]]; then
+                                primary_url="http://$ip:$port"
+                            fi
+                            ;;
+                        8090)
+                            # Jenkins, SonarQube
+                            available_ports+=("$port:http://$ip:$port")
+                            if [[ "$primary_url" == "http://$ip" ]]; then
+                                primary_url="http://$ip:$port"
+                            fi
+                            ;;
+                        10000)
+                            # Webmin
+                            available_ports+=("$port:https://$ip:$port")
+                            if [[ "$primary_url" == "http://$ip" ]]; then
+                                primary_url="https://$ip:$port"
+                            fi
+                            ;;
+                        11434)
+                            # Ollama API
+                            available_ports+=("$port:http://$ip:$port")
+                            if [[ "$primary_url" == "http://$ip" ]]; then
+                                primary_url="http://$ip:$port"
+                            fi
+                            ;;
+                        32168)
+                            # Code-server default port
+                            available_ports+=("$port:https://$ip:$port")
+                            if [[ "$primary_url" == "http://$ip" ]]; then
+                                primary_url="https://$ip:$port"
+                            fi
+                            ;;
+                        3334)
+                            # Obico 3D printer monitoring
+                            available_ports+=("$port:http://$ip:$port")
+                            if [[ "$primary_url" == "http://$ip" ]]; then
+                                primary_url="http://$ip:$port"
+                            fi
+                            ;;
+                        8096)
+                            # Jellyfin media server
+                            available_ports+=("$port:http://$ip:$port")
+                            if [[ "$primary_url" == "http://$ip" ]]; then
+                                primary_url="http://$ip:$port"
+                            fi
+                            ;;
+                        9981)
+                            # TVHeadend
+                            available_ports+=("$port:http://$ip:$port")
+                            if [[ "$primary_url" == "http://$ip" ]]; then
+                                primary_url="http://$ip:$port"
+                            fi
+                            ;;
+                        32400)
+                            # Plex Media Server
+                            available_ports+=("$port:http://$ip:$port")
+                            if [[ "$primary_url" == "http://$ip" ]]; then
+                                primary_url="http://$ip:$port"
+                            fi
+                            ;;
+                        8086)
+                            # InfluxDB
+                            available_ports+=("$port:http://$ip:$port")
+                            if [[ "$primary_url" == "http://$ip" ]]; then
+                                primary_url="http://$ip:$port"
+                            fi
+                            ;;
+                        9100)
+                            # Prometheus Node Exporter
+                            available_ports+=("$port:http://$ip:$port")
+                            if [[ "$primary_url" == "http://$ip" ]]; then
+                                primary_url="http://$ip:$port"
+                            fi
+                            ;;
+                        9187)
+                            # Prometheus MySQL Exporter
+                            available_ports+=("$port:http://$ip:$port")
+                            if [[ "$primary_url" == "http://$ip" ]]; then
+                                primary_url="http://$ip:$port"
+                            fi
+                            ;;
+                        5000)
+                            # Synology DSM (HTTP) or other NAS
+                            available_ports+=("$port:http://$ip:$port")
+                            if [[ "$primary_url" == "http://$ip" ]]; then
+                                primary_url="http://$ip:$port"
+                            fi
+                            ;;
+                        5001)
+                            # Synology DSM (HTTPS) or other NAS
+                            available_ports+=("$port:https://$ip:$port")
+                            if [[ "$primary_url" == "http://$ip" ]]; then
+                                primary_url="https://$ip:$port"
+                            fi
+                            ;;
+                        8007)
+                            # Proxmox Backup Server
+                            available_ports+=("$port:https://$ip:$port")
+                            if [[ "$primary_url" == "http://$ip" ]]; then
+                                primary_url="https://$ip:$port"
+                            fi
+                            ;; 
                             # For all other ports, try to determine protocol from service
                             case $service in
                                 http*|*http*|web*)
@@ -285,7 +400,32 @@ echo "[discovery] Creating JSON file..."
                     http*) service_type="Web Server" ;;
                     https*) service_type="Secure Web Server" ;;
                     ssh) service_type="SSH Server" ;;
-                    *) service_type="Network Device" ;;
+                    docker*) service_type="Docker Service" ;;
+                    *) 
+                        # Check port numbers for better service identification
+                        case $first_port in
+                            8006) service_type="Proxmox VE" ;;
+                            8007) service_type="Proxmox Backup" ;;
+                            8080|8081|9000) service_type="Web Interface" ;;
+                            8443|32168) service_type="Code Server" ;;
+                            11434) service_type="Ollama AI" ;;
+                            19999) service_type="Netdata Monitor" ;;
+                            3001) service_type="Grafana" ;;
+                            3334) service_type="Obico 3D Monitor" ;;
+                            8096) service_type="Jellyfin Media" ;;
+                            9981) service_type="TVHeadend" ;;
+                            32400) service_type="Plex Media" ;;
+                            8086) service_type="InfluxDB" ;;
+                            9090) service_type="Prometheus" ;;
+                            9100) service_type="Node Exporter" ;;
+                            9187) service_type="MySQL Exporter" ;;
+                            5000) service_type="NAS Storage" ;;
+                            5001) service_type="NAS Storage (SSL)" ;;
+                            2375|2376) service_type="Docker API" ;;
+                            4200) service_type="Angular Dev" ;;
+                            *) service_type="Network Device" ;;
+                        esac
+                        ;;
                 esac
                 
                 escaped_name="$service_type ($name)"
@@ -308,9 +448,16 @@ echo "[discovery] Creating JSON file..."
                     IFS='/' read -r port service <<< "$port_info"
                     
                     # Determine URL for this port
-                    case $port in
+                    case $port_info in
                         80) port_url="http://$ip" ;;
                         443) port_url="https://$ip" ;;
+                        2375|2376) port_url="http://$ip:$port" ;;  # Docker API
+                        8443|10000|32168) port_url="https://$ip:$port" ;; # Code-server, Webmin
+                        8096|9981|32400) port_url="http://$ip:$port" ;;   # Jellyfin, TVHeadend, Plex
+                        8086|9090|9100|9187|19999) port_url="http://$ip:$port" ;; # Monitoring stack
+                        5000) port_url="http://$ip:$port" ;;       # NAS HTTP
+                        5001|8007) port_url="https://$ip:$port" ;; # NAS HTTPS, Proxmox Backup
+                        11434) port_url="http://$ip:$port" ;;      # Ollama
                         *) port_url="http://$ip:$port" ;;
                     esac
                     
