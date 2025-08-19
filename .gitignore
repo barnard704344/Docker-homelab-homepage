@@ -1,0 +1,7 @@
+# Persistent data directory - contains scan results and pins
+data/*
+!data/.gitkeep
+
+# Container logs and temporary files
+*.log
+.DS_Store

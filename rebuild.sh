@@ -10,11 +10,14 @@ if ! docker build -t homepage .; then
 fi
 
 echo "Starting..."
+# Create data directory if it doesn't exist
+mkdir -p "$(pwd)/data"
 docker run -d \
   --name homepage \
   --network host \
   -e SUBNETS="192.168.1.0/24" \
   -e SCAN_INTERVAL=10 \
+  -v "$(pwd)/data:/var/www/site/data" \
   homepage
 
 echo "Status:"

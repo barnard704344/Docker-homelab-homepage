@@ -4,7 +4,13 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE');
 header('Access-Control-Allow-Headers: Content-Type');
 
-$pins_file = '/var/www/site/pins.json';
+// Use persistent data directory
+$pins_file = '/var/www/site/data/pins.json';
+
+// Ensure data directory exists
+if (!is_dir('/var/www/site/data')) {
+    mkdir('/var/www/site/data', 0755, true);
+}
 
 // Ensure pins file exists
 if (!file_exists($pins_file)) {

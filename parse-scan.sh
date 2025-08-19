@@ -2,23 +2,33 @@
 set -e
 
 # Parse nmap scan results and generate services.json for the homepage
-SCAN_FILE="/var/www/site/scan/last-scan.txt"
-SERVICES_FILE="/var/www/site/services.json"
+SCAN_FILE="/var/www/site/data/scan/last-scan.txt"
+SERVICES_FILE="/var/www/site/data/services.json"
+# Also create services.json in the web root for backward compatibility
+SERVICES_FILE_COMPAT="/var/www/site/services.json"
 
 echo "[discovery] Parsing scan results from ${SCAN_FILE}..."
 
 if [[ ! -f "${SCAN_FILE}" ]]; then
     echo "[discovery] ERROR: No scan file found at ${SCAN_FILE}"
     echo "[]" > "${SERVICES_FILE}" || {
-        echo "[discovery] ERROR: Cannot write to ${SERVICES_FILE}"
+        echo "[discovery] ERROR: Cannot write empty array to ${SERVICES_FILE}"
         exit 1
     }
+    # Also create compatibility file
+    echo "[]" > "${SERVICES_FILE_COMPAT}" 2>/dev/null || true
     exit 1
 fi
 
 # Create services directory if it doesn't exist
 mkdir -p "$(dirname "${SERVICES_FILE}")" || {
     echo "[discovery] ERROR: Cannot create directory $(dirname "${SERVICES_FILE}")"
+    exit 1
+}
+
+# Also ensure web root directory exists for compatibility file
+mkdir -p "$(dirname "${SERVICES_FILE_COMPAT}")" || {
+    echo "[discovery] ERROR: Cannot create directory $(dirname "${SERVICES_FILE_COMPAT}")"
     exit 1
 }
 
@@ -321,6 +331,9 @@ echo "[discovery] Creating JSON file..."
     exit 1
 }
 
+# Create compatibility copy in web root (don't fail if this doesn't work)
+cp "${SERVICES_FILE}" "${SERVICES_FILE_COMPAT}" 2>/dev/null || true
+
 # Validate JSON
 if command -v jq >/dev/null 2>&1; then
     if jq . "${SERVICES_FILE}" >/dev/null 2>&1; then
@@ -334,9 +347,11 @@ else
     echo "[discovery] jq not available, skipping JSON validation"
 fi
 
-# Set permissions
+# Set permissions for both files
 chown nginx:nginx "${SERVICES_FILE}" 2>/dev/null || true
 chmod 644 "${SERVICES_FILE}" 2>/dev/null || true
+chown nginx:nginx "${SERVICES_FILE_COMPAT}" 2>/dev/null || true
+chmod 644 "${SERVICES_FILE_COMPAT}" 2>/dev/null || true
 
 echo "[discovery] SUCCESS: Generated ${#services[@]} services"
 echo "[discovery] File: ${SERVICES_FILE} ($(wc -c < "${SERVICES_FILE}") bytes)"

@@ -7,7 +7,8 @@ set -euo pipefail
 #   SUBNETS="192.168.1.0/24 10.72.28.0/22 10.136.40.0/24"
 SUBNETS="${SUBNETS:-192.168.1.0/24}"
 
-OUTDIR="/var/www/site/scan"
+# Use persistent data directory that survives container rebuilds
+OUTDIR="/var/www/site/data/scan"
 TIMESTAMP="$(date -Iseconds)"
 mkdir -p "${OUTDIR}"
 
@@ -60,6 +61,8 @@ echo "Done." >> "${OUTFILE}"
 
 # Convenience symlink
 ln -sf "${OUTFILE}" /var/www/site/scan.txt
+# Also create a symlink in the persistent directory for easy access
+ln -sf "${OUTFILE}" /var/www/site/data/scan.txt
 
 echo "[scanner] OK: wrote ${OUTFILE}"
 

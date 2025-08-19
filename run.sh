@@ -12,9 +12,12 @@ docker stop "${CONTAINER_NAME}" >/dev/null 2>&1 || true
 docker rm "${CONTAINER_NAME}" >/dev/null 2>&1 || true
 
 echo "[*] Running container with --network host ..."
+# Create data directory if it doesn't exist
+mkdir -p "$(pwd)/data"
 docker run -d \
   --name "${CONTAINER_NAME}" \
   --network host \
+  -v "$(pwd)/data:/var/www/site/data" \
   "${IMAGE_NAME}"
 
 echo "[*] Container started. Access your site at:  http://<HOST_LAN_IP>/"
