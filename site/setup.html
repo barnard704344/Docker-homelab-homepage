@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homepage Setup - Categories & Services</title>
+    <style>
+        :root {
+            --bg: #0f0f23;
+            --fg: #cccccc;
+            --border: #333;
+            --accent: #009900;
+            --accent-hover: #00cc00;
+            --card-bg: #1a1a2e;
+            --card-hover: #252547;
+            --warning: #ff6b35;
+            --muted: #888;
+            --success: #28a745;
+        }
+        
+        * { box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.4;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+        }
+        
+        header h1 {
+            font-size: 2rem;
+            margin: 0 0 10px 0;
+            color: var(--accent);
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 10px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--fg);
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.2s;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            background: var(--card-hover);
+            border-color: var(--accent);
+        }
+        
+        .btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+        
+        .btn.success {
+            background: var(--success);
+            border-color: var(--success);
+            color: white;
+        }
+        
+        .section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+        
+        .section h2 {
+            margin: 0 0 15px 0;
+            color: var(--accent);
+            font-size: 1.3rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--fg);
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg);
+            color: var(--fg);
+            font-size: 14px;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        .category-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .category-item {
+            background: var(--bg);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        
+        .category-item input {
+            margin-bottom: 10px;
+        }
+        
+        .service-assignment {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .service-item {
+            background: var(--bg);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .service-info {
+            flex: 1;
+        }
+        
+        .service-info h4 {
+            margin: 0 0 5px 0;
+            color: var(--fg);
+        }
+        
+        .service-info p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12px;
+        }
+        
+        .service-item select {
+            min-width: 150px;
+        }
+        
+        .add-service {
+            border: 2px dashed var(--border);
+            background: transparent;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .add-service:hover {
+            border-color: var(--accent);
+            background: var(--card-bg);
+        }
+        
+        .add-service-form {
+            display: none;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            margin-top: 15px;
+        }
+        
+        .add-service-form.active {
+            display: block;
+        }
+        
+        .inline-form {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: end;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .status.success {
+            background: rgba(40, 167, 69, 0.2);
+            color: var(--success);
+            border: 1px solid var(--success);
+        }
+        
+        .status.error {
+            background: rgba(255, 107, 53, 0.2);
+            color: var(--warning);
+            border: 1px solid var(--warning);
+        }
+        
+        .delete-btn {
+            background: var(--warning);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .delete-btn:hover {
+            background: #e55a2b;
+        }
+        
+        @media (max-width: 768px) {
+            .nav-buttons {
+                flex-direction: column;
+            }
+            
+            .category-list,
+            .service-assignment {
+                grid-template-columns: 1fr;
+            }
+            
+            .inline-form {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛠️ Homepage Setup</h1>
+            <p>Manage categories and organize your homelab services</p>
+        </header>
+        
+        <div class="nav-buttons">
+            <a href="/" class="btn">← Back to Homepage</a>
+            <button class="btn success" onclick="saveAllChanges()">💾 Save All Changes</button>
+            <button class="btn" onclick="resetToDefaults()">🔄 Reset to Defaults</button>
+        </div>
+        
+        <div id="status" class="status"></div>
+        
+        <!-- Categories Management -->
+        <div class="section">
+            <h2>📁 Manage Categories</h2>
+            <p>Rename existing categories or create new ones. Services will be automatically reassigned when you rename categories.</p>
+            
+            <div class="inline-form">
+                <div class="form-group">
+                    <label for="new-category-name">Add New Category</label>
+                    <input type="text" id="new-category-name" placeholder="e.g., Media Servers, Development Tools">
+                </div>
+                <button class="btn primary" onclick="addCategory()">➕ Add Category</button>
+            </div>
+            
+            <div id="categories-list" class="category-list">
+                <!-- Categories will be loaded here -->
+            </div>
+        </div>
+        
+        <!-- Service Assignment -->
+        <div class="section">
+            <h2>🏷️ Assign Services to Categories</h2>
+            <p>Organize your discovered services by assigning them to the appropriate categories.</p>
+            
+            <div id="services-list" class="service-assignment">
+                <!-- Services will be loaded here -->
+            </div>
+        </div>
+        
+        <!-- Manual Service Addition -->
+        <div class="section">
+            <h2>➕ Add Custom Services</h2>
+            <p>Add services that weren't automatically discovered by the network scanner.</p>
+            
+            <div class="add-service" onclick="toggleAddServiceForm()">
+                <div style="font-size: 2rem; margin-bottom: 10px;">➕</div>
+                <div>Click to add a custom service</div>
+            </div>
+            
+            <div id="add-service-form" class="add-service-form">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label for="service-name">Service Name</label>
+                        <input type="text" id="service-name" placeholder="e.g., My NAS">
+                    </div>
+                    <div class="form-group">
+                        <label for="service-url">URL</label>
+                        <input type="url" id="service-url" placeholder="http://192.168.1.100:8080">
+                    </div>
+                    <div class="form-group">
+                        <label for="service-category">Category</label>
+                        <select id="service-category">
+                            <!-- Categories will be populated -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="service-description">Description</label>
+                        <input type="text" id="service-description" placeholder="Brief description">
+                    </div>
+                </div>
+                <div style="margin-top: 15px; display: flex; gap: 10px;">
+                    <button class="btn primary" onclick="addCustomService()">💾 Add Service</button>
+                    <button class="btn" onclick="toggleAddServiceForm()">❌ Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Data stores
+        let categories = {};
+        let services = [];
+        let serviceAssignments = {};
+        
+        // Load initial data
+        async function loadData() {
+            try {
+                // Load categories
+                const categoriesResponse = await fetch('/setup-data.php?action=get_categories');
+                if (categoriesResponse.ok) {
+                    categories = await categoriesResponse.json();
+                }
+                
+                // Load services
+                const servicesResponse = await fetch('/services.json');
+                if (servicesResponse.ok) {
+                    services = await servicesResponse.json();
+                }
+                
+                // Load service assignments
+                const assignmentsResponse = await fetch('/setup-data.php?action=get_assignments');
+                if (assignmentsResponse.ok) {
+                    serviceAssignments = await assignmentsResponse.json();
+                }
+                
+                renderCategories();
+                renderServices();
+                updateCategorySelects();
+                
+            } catch (error) {
+                showStatus('Error loading data: ' + error.message, 'error');
+            }
+        }
+        
+        // Render categories list
+        function renderCategories() {
+            const container = document.getElementById('categories-list');
+            container.innerHTML = '';
+            
+            for (const [key, name] of Object.entries(categories)) {
+                const div = document.createElement('div');
+                div.className = 'category-item';
+                div.innerHTML = `
+                    <input type="text" value="${escapeHtml(name)}" onchange="updateCategory('${key}', this.value)" placeholder="Category name">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <small style="color: var(--muted);">Key: ${key}</small>
+                        <button class="delete-btn" onclick="deleteCategory('${key}')">🗑️ Delete</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            }
+        }
+        
+        // Render services list
+        function renderServices() {
+            const container = document.getElementById('services-list');
+            container.innerHTML = '';
+            
+            services.forEach((service, index) => {
+                const currentCategory = serviceAssignments[service.title] || service.group || 'Other';
+                
+                const div = document.createElement('div');
+                div.className = 'service-item';
+                div.innerHTML = `
+                    <div class="service-info">
+                        <h4>${escapeHtml(service.title)}</h4>
+                        <p>${escapeHtml(service.desc || '')}</p>
+                        <p style="color: var(--accent);">${escapeHtml(service.url)}</p>
+                    </div>
+                    <select onchange="updateServiceAssignment('${escapeHtml(service.title)}', this.value)">
+                        ${Object.entries(categories).map(([key, name]) => 
+                            `<option value="${key}" ${key === currentCategory ? 'selected' : ''}>${escapeHtml(name)}</option>`
+                        ).join('')}
+                    </select>
+                `;
+                container.appendChild(div);
+            });
+        }
+        
+        // Update category selects
+        function updateCategorySelects() {
+            const selects = document.querySelectorAll('#service-category');
+            selects.forEach(select => {
+                select.innerHTML = Object.entries(categories).map(([key, name]) => 
+                    `<option value="${key}">${escapeHtml(name)}</option>`
+                ).join('');
+            });
+        }
+        
+        // Add new category
+        function addCategory() {
+            const input = document.getElementById('new-category-name');
+            const name = input.value.trim();
+            
+            if (!name) {
+                showStatus('Please enter a category name', 'error');
+                return;
+            }
+            
+            const key = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+            
+            if (categories[key]) {
+                showStatus('Category already exists', 'error');
+                return;
+            }
+            
+            categories[key] = name;
+            input.value = '';
+            
+            renderCategories();
+            updateCategorySelects();
+            showStatus('Category added successfully', 'success');
+        }
+        
+        // Update category name
+        function updateCategory(key, newName) {
+            if (newName.trim()) {
+                categories[key] = newName.trim();
+                updateCategorySelects();
+            }
+        }
+        
+        // Delete category
+        function deleteCategory(key) {
+            if (confirm('Are you sure you want to delete this category? Services will be moved to "Other".')) {
+                // Move services to "Other" category
+                for (const serviceTitle in serviceAssignments) {
+                    if (serviceAssignments[serviceTitle] === key) {
+                        serviceAssignments[serviceTitle] = 'other';
+                    }
+                }
+                
+                delete categories[key];
+                renderCategories();
+                renderServices();
+                updateCategorySelects();
+                showStatus('Category deleted successfully', 'success');
+            }
+        }
+        
+        // Update service assignment
+        function updateServiceAssignment(serviceTitle, categoryKey) {
+            serviceAssignments[serviceTitle] = categoryKey;
+        }
+        
+        // Toggle add service form
+        function toggleAddServiceForm() {
+            const form = document.getElementById('add-service-form');
+            form.classList.toggle('active');
+            
+            if (form.classList.contains('active')) {
+                document.getElementById('service-name').focus();
+            }
+        }
+        
+        // Add custom service
+        async function addCustomService() {
+            const name = document.getElementById('service-name').value.trim();
+            const url = document.getElementById('service-url').value.trim();
+            const category = document.getElementById('service-category').value;
+            const description = document.getElementById('service-description').value.trim();
+            
+            if (!name || !url) {
+                showStatus('Please enter both name and URL', 'error');
+                return;
+            }
+            
+            const newService = {
+                title: name,
+                url: url,
+                group: categories[category] || 'Other',
+                desc: description,
+                tags: ['custom'],
+                ports: []
+            };
+            
+            services.push(newService);
+            serviceAssignments[name] = category;
+            
+            // Clear form
+            document.getElementById('service-name').value = '';
+            document.getElementById('service-url').value = '';
+            document.getElementById('service-description').value = '';
+            toggleAddServiceForm();
+            
+            renderServices();
+            showStatus('Custom service added successfully', 'success');
+        }
+        
+        // Save all changes
+        async function saveAllChanges() {
+            try {
+                showStatus('Saving changes...', 'success');
+                
+                // Save categories
+                await fetch('/setup-data.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'save_categories',
+                        categories: categories
+                    })
+                });
+                
+                // Save service assignments
+                await fetch('/setup-data.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'save_assignments',
+                        assignments: serviceAssignments
+                    })
+                });
+                
+                // Update services with new categories and save
+                const updatedServices = services.map(service => ({
+                    ...service,
+                    group: categories[serviceAssignments[service.title] || service.group] || service.group
+                }));
+                
+                await fetch('/setup-data.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'save_services',
+                        services: updatedServices
+                    })
+                });
+                
+                showStatus('All changes saved successfully! ✅', 'success');
+                
+            } catch (error) {
+                showStatus('Error saving changes: ' + error.message, 'error');
+            }
+        }
+        
+        // Reset to defaults
+        function resetToDefaults() {
+            if (confirm('Are you sure you want to reset all categories and assignments to defaults? This cannot be undone.')) {
+                categories = {
+                    'media': 'Media',
+                    'home-automation': 'Home Automation', 
+                    'web-service': 'Web Service',
+                    'server': 'Server',
+                    'development': 'Development',
+                    'monitoring': 'Monitoring',
+                    'other': 'Other'
+                };
+                serviceAssignments = {};
+                
+                renderCategories();
+                renderServices();
+                updateCategorySelects();
+                showStatus('Reset to default categories', 'success');
+            }
+        }
+        
+        // Show status message
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, type === 'error' ? 5000 : 3000);
+        }
+        
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>

@@ -144,6 +144,27 @@ echo "[discovery] Found ${#services[@]} services total"
 # Convert to JSON format
 json_services=()
 
+# Load existing category assignments if they exist
+declare -A category_assignments
+declare -A category_names
+if [[ -f "/var/www/site/data/service-assignments.json" ]]; then
+    echo "[discovery] Loading existing category assignments..."
+    if command -v jq >/dev/null 2>&1; then
+        while IFS="=" read -r key value; do
+            category_assignments["$key"]="$value"
+        done < <(jq -r 'to_entries | .[] | "\(.key)=\(.value)"' /var/www/site/data/service-assignments.json 2>/dev/null || true)
+    fi
+fi
+
+if [[ -f "/var/www/site/data/categories.json" ]]; then
+    echo "[discovery] Loading category names..."
+    if command -v jq >/dev/null 2>&1; then
+        while IFS="=" read -r key value; do
+            category_names["$key"]="$value"
+        done < <(jq -r 'to_entries | .[] | "\(.key)=\(.value)"' /var/www/site/data/categories.json 2>/dev/null || true)
+    fi
+fi
+
 for service_line in "${services[@]}"; do
     IFS='|' read -r host ip ports <<< "$service_line"
     
@@ -224,25 +245,35 @@ for service_line in "${services[@]}"; do
     service_type="Unknown"
     description="Network service"
     
-    # Try to identify the service type based on ports and hostname
-    if [[ "$host" =~ plex|media ]]; then
-        service_type="Media"
-        description="Plex Media Server"
-    elif [[ "$host" =~ jellyfin ]]; then
-        service_type="Media" 
-        description="Jellyfin Media Server"
-    elif [[ "$host" =~ domoticz ]]; then
-        service_type="Home Automation"
-        description="Domoticz Home Automation"
-    elif echo "$ports" | grep -q "443\|8443\|9443"; then
-        service_type="Web Service"
-        description="HTTPS Web Service"
-    elif echo "$ports" | grep -q "80\|8080\|3000\|5000\|8000\|9000"; then
-        service_type="Web Service"
-        description="HTTP Web Service"
-    elif echo "$ports" | grep -q "22"; then
-        service_type="Server"
-        description="SSH Server"
+    # Check if this service has a custom category assignment
+    if [[ -n "${category_assignments[$host]}" ]]; then
+        assigned_category="${category_assignments[$host]}"
+        if [[ -n "${category_names[$assigned_category]}" ]]; then
+            service_type="${category_names[$assigned_category]}"
+            description="Custom assigned service"
+            echo "[discovery] Using custom category for $host: $service_type"
+        fi
+    else
+        # Default service type detection based on ports and hostname
+        if [[ "$host" =~ plex|media ]]; then
+            service_type="Media"
+            description="Plex Media Server"
+        elif [[ "$host" =~ jellyfin ]]; then
+            service_type="Media" 
+            description="Jellyfin Media Server"
+        elif [[ "$host" =~ domoticz ]]; then
+            service_type="Home Automation"
+            description="Domoticz Home Automation"
+        elif echo "$ports" | grep -q "443\|8443\|9443"; then
+            service_type="Web Service"
+            description="HTTPS Web Service"
+        elif echo "$ports" | grep -q "80\|8080\|3000\|5000\|8000\|9000"; then
+            service_type="Web Service"
+            description="HTTP Web Service"
+        elif echo "$ports" | grep -q "22"; then
+            service_type="Server"
+            description="SSH Server"
+        fi
     fi
     
     # Create port objects for frontend

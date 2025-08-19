@@ -250,13 +250,17 @@
       <button class="btn" id="toggle-pins">📌 Pinned</button>
       <button class="btn" id="refresh">🔄 Refresh</button>
       <div class="btn" id="scan-status">🔍 Scan Status</div>
+      <a href="/setup.html" class="btn">⚙️ Setup</a>
     </div>
     
     <div id="grid" class="grid" aria-live="polite"></div>
     
     <footer class="muted">
       <p>Tip: pin your most used services with the 📌 button</p>
-      <p><a href="#" onclick="checkDebug()" style="color: var(--muted); font-size: 12px;">Debug Info</a></p>
+      <p>
+        <a href="/setup.html" style="color: var(--accent); font-size: 12px;">⚙️ Setup Categories</a> | 
+        <a href="#" onclick="checkDebug()" style="color: var(--muted); font-size: 12px;">Debug Info</a>
+      </p>
     </footer>
   </main>
 
@@ -288,9 +292,42 @@
         const data = await res.json();
         const incoming = Array.isArray(data) ? data : (Array.isArray(data.links) ? data.links : []);
         DYNAMIC_LINKS = sanitizeLinks(incoming);
+        
+        // Apply category assignments from setup
+        await applyCategoryAssignments();
       } catch (err) {
         console.log('Could not load services.json:', err.message);
         DYNAMIC_LINKS = [];
+      }
+    }
+
+    // --- Apply category assignments from setup page
+    async function applyCategoryAssignments() {
+      try {
+        // Load category assignments
+        const assignmentRes = await fetch('/setup-data.php?action=get_assignments', { cache: 'no-store' });
+        if (!assignmentRes.ok) return; // No assignments yet, use defaults
+        
+        const assignments = await assignmentRes.json();
+        
+        // Load category names
+        const categoriesRes = await fetch('/setup-data.php?action=get_categories', { cache: 'no-store' });
+        if (!categoriesRes.ok) return; // No categories yet, use defaults
+        
+        const categories = await categoriesRes.json();
+        
+        // Apply assignments to services
+        DYNAMIC_LINKS = DYNAMIC_LINKS.map(service => {
+          const assignedCategory = assignments[service.title];
+          if (assignedCategory && categories[assignedCategory]) {
+            service.group = categories[assignedCategory];
+          }
+          return service;
+        });
+        
+        console.log('Applied category assignments to', DYNAMIC_LINKS.length, 'services');
+      } catch (err) {
+        console.log('Could not load category assignments:', err.message);
       }
     }
 
