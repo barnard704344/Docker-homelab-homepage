@@ -536,7 +536,7 @@
         setPins(newPins);
       } else {
         // Find the service in either static or dynamic lists
-        const staticService = services.find(s => s.title === title);
+        const staticService = LINKS.find(s => s.title === title);
         const dynamicService = DYNAMIC_LINKS.find(s => s.title === title);
         
         const service = staticService || dynamicService;
