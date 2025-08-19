@@ -47,38 +47,66 @@ function loadJsonFile($file, $default = []) {
     return $default;
 }
 
-function saveJsonFile($file, $data) {
-    $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-    if ($json === false) {
-        throw new Exception('Failed to encode JSON');
+function saveJsonFile($filename, $data) {
+    $dataDir = '/var/www/site/data';
+    
+    // Ensure directory exists with maximum permissions
+    if (!is_dir($dataDir)) {
+        mkdir($dataDir, 0777, true);
+        chmod($dataDir, 0777);
     }
     
-    // Ensure directory exists and is writable
-    $dir = dirname($file);
-    if (!is_dir($dir)) {
-        mkdir($dir, 0777, true);
-    }
-    
-    // Try to fix permissions if needed
-    if (!is_writable($dir)) {
-        @chmod($dir, 0777);
-    }
-    
-    if (file_put_contents($file, $json) === false) {
-        // Try to fix file permissions and try again
-        if (file_exists($file)) {
-            @chmod($file, 0666);
-        }
+    // Ensure directory is writable
+    if (!is_writable($dataDir)) {
+        // Try to fix permissions
+        chmod($dataDir, 0777);
         
-        if (file_put_contents($file, $json) === false) {
-            throw new Exception('Failed to write file: ' . $file . ' (Directory writable: ' . (is_writable($dir) ? 'yes' : 'no') . ')');
+        // If still not writable, return detailed error
+        if (!is_writable($dataDir)) {
+            $perms = substr(sprintf('%o', fileperms($dataDir)), -4);
+            $owner = function_exists('posix_getpwuid') ? posix_getpwuid(fileowner($dataDir))['name'] : 'unknown';
+            return ["error" => "Directory not writable. Permissions: $perms, Owner: $owner, Current user: " . (function_exists('posix_getpwuid') ? posix_getpwuid(posix_geteuid())['name'] : 'unknown')];
         }
     }
     
-    // Ensure file is readable
-    @chmod($file, 0666);
+    $filepath = "$dataDir/$filename";
     
-    return true;
+    // Create file if it doesn't exist
+    if (!file_exists($filepath)) {
+        touch($filepath);
+        chmod($filepath, 0666);
+    }
+    
+    $json = json_encode($data, JSON_PRETTY_PRINT);
+    
+    // Try multiple write approaches
+    $success = false;
+    
+    // Method 1: Direct file_put_contents
+    if (file_put_contents($filepath, $json, LOCK_EX) !== false) {
+        $success = true;
+    } 
+    // Method 2: Open file handle
+    else if (($handle = fopen($filepath, 'w')) !== false) {
+        if (flock($handle, LOCK_EX)) {
+            if (fwrite($handle, $json) !== false) {
+                $success = true;
+            }
+            flock($handle, LOCK_UN);
+        }
+        fclose($handle);
+    }
+    
+    if ($success) {
+        // Ensure file permissions are correct after writing
+        chmod($filepath, 0666);
+        return ["success" => true];
+    } else {
+        $error = error_get_last();
+        $perms = file_exists($filepath) ? substr(sprintf('%o', fileperms($filepath)), -4) : 'not exists';
+        $dirWritable = is_writable($dataDir) ? 'yes' : 'no';
+        return ["error" => "Failed to write file: $filepath (Directory writable: $dirWritable, File permissions: $perms, PHP error: " . ($error['message'] ?? 'none') . ")"];
+    }
 }
 
 // Handle requests

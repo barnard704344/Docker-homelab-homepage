@@ -27,37 +27,47 @@ mkdir -p /var/log/nginx
 chown -R nginx:nginx /var/www/site
 chmod -R 755 /var/www/site
 
-# Ensure the persistent data directory has correct permissions
-if [[ -d /var/www/site/data ]]; then
-    echo "[start] Setting up persistent data directory permissions..."
-    chown -R nginx:nginx /var/www/site/data
-    # Use 777 permissions to ensure PHP-FPM can write (category management needs this)
-    chmod -R 777 /var/www/site/data
-    # Ensure scan subdirectory is writable
-    mkdir -p /var/www/site/data/scan
-    chown -R nginx:nginx /var/www/site/data/scan
-    chmod -R 777 /var/www/site/data/scan
-    echo "[start] ✓ Persistent data directory configured with 777 permissions"
-    
-    # Test if we can actually write to it
+# Force create and setup persistent data directory with maximum permissions
+echo "[start] Setting up persistent data directory..."
+mkdir -p /var/www/site/data
+mkdir -p /var/www/site/data/scan
+
+# Set maximum permissions for category management to work
+echo "[start] Setting 777 permissions for data directory..."
+chmod 777 /var/www/site/data
+chmod 777 /var/www/site/data/scan
+
+# Try different ownership approaches
+echo "[start] Setting ownership..."
+chown -R nginx:nginx /var/www/site/data 2>/dev/null || true
+chown -R www-data:www-data /var/www/site/data 2>/dev/null || true
+chown -R nobody:nobody /var/www/site/data 2>/dev/null || true
+
+# Force permissions again after ownership changes
+chmod -R 777 /var/www/site/data
+
+# Create empty files with proper permissions if they don't exist
+touch /var/www/site/data/categories.json 2>/dev/null || true
+touch /var/www/site/data/service-assignments.json 2>/dev/null || true
+touch /var/www/site/data/services.json 2>/dev/null || true
+chmod 666 /var/www/site/data/*.json 2>/dev/null || true
+
+# Test write capability extensively
+echo "[start] Testing write capability..."
+if touch /var/www/site/data/test-write 2>/dev/null; then
+    rm -f /var/www/site/data/test-write
+    echo "[start] ✓ Write test successful - category management should work"
+else
+    echo "[start] ❌ Write test failed - trying alternative approach..."
+    # Last resort: make directory world-writable
+    chmod 1777 /var/www/site/data
     if touch /var/www/site/data/test-write 2>/dev/null; then
         rm -f /var/www/site/data/test-write
-        echo "[start] ✓ Write test successful"
+        echo "[start] ✓ Write test successful with sticky bit"
     else
-        echo "[start] ❌ Write test failed - volume mount may have permission issues"
-        echo "[start] Attempting additional permission fixes..."
-        chmod 777 /var/www/site/data
-        mkdir -p /var/www/site/data
-        chmod 777 /var/www/site/data
-        if touch /var/www/site/data/test-write 2>/dev/null; then
-            rm -f /var/www/site/data/test-write
-            echo "[start] ✓ Write test successful after additional fixes"
-        else
-            echo "[start] ❌ Write test still failing - this may affect category management"
-        fi
+        echo "[start] ❌ Write test still failing - category management may not work"
+        ls -la /var/www/site/ || echo "Cannot list directory"
     fi
-else
-    echo "[start] ⚠ Persistent data directory not mounted - scans will not persist"
 fi
 
 # Ensure PHP-FPM can write to necessary directories
