@@ -355,7 +355,8 @@
       const out = [];
       const pinned = getPins(); // Get pinned services as objects
       const selectedPorts = getSelectedPorts(); // Get selected ports
-      const all = [...LINKS, ...DYNAMIC_LINKS, ...pinned];
+      const pinnedTitles = new Set(pinned.map(p => p.title)); // Just get titles, don't add as separate entries
+      const all = [...LINKS, ...DYNAMIC_LINKS]; // Don't include pinned as separate entries
       
       for (const link of all) {
         const urlKey = (link.url || '').toLowerCase();
@@ -364,6 +365,17 @@
         
         if (!key || seen.has(key)) continue;
         seen.add(key);
+        
+        // Mark as pinned if it's in the pinned list
+        const isPinned = pinnedTitles.has(link.title);
+        if (isPinned) {
+          link.isPinned = true;
+          // Use pinned service's URL if it has a selected port
+          const pinnedService = pinned.find(p => p.title === link.title);
+          if (pinnedService && pinnedService.url !== link.url) {
+            link.url = pinnedService.url;
+          }
+        }
         
         // Apply stored port selection to this link
         const selectedPort = selectedPorts[link.title];
@@ -670,13 +682,13 @@
             }
           }
           
-          // Add to pins with selected URL
+          // Add to pins with selected URL, keeping original group/category
           const pinData = {
             title: service.title,
             url: pinUrl,
-            group: 'Pinned',
+            group: service.group || service.category || 'Uncategorized', // Keep original category
             desc: service.desc,
-            tags: ['pinned'],
+            tags: ['pinned'].concat(service.tags || []), // Add pinned tag to existing tags
             ports: service.ports || [], // Include ports for consistency
             selectedPort: selectedPorts[title] ? selectedPorts[title].port : null
           };
@@ -698,9 +710,7 @@
 
       // Filter by pinned if active
       if (showingPinnedOnly) {
-        const pins = getPins();
-        const pinnedTitles = new Set(pins.map(p => p.title));
-        links = links.filter(link => pinnedTitles.has(link.title));
+        links = links.filter(link => link.isPinned);
       }
 
       const groups = groupsFromLinks(links);
