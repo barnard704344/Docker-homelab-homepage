@@ -16,8 +16,9 @@ RUN_SCAN_ON_START="${RUN_SCAN_ON_START:-0}"
 
 echo "[start] Setting up directories and permissions..."
 
-# Ensure all required directories exist
+# Ensure all required directories exist (both old and new paths for compatibility)
 mkdir -p /var/www/site/scan
+mkdir -p /var/www/site/data/scan
 mkdir -p /run/nginx
 mkdir -p /run/php
 mkdir -p /var/log/nginx
@@ -25,6 +26,16 @@ mkdir -p /var/log/nginx
 # Set proper ownership for web directories
 chown -R nginx:nginx /var/www/site
 chmod -R 755 /var/www/site
+
+# Ensure the persistent data directory has correct permissions
+if [[ -d /var/www/site/data ]]; then
+    echo "[start] Setting up persistent data directory permissions..."
+    chown -R nginx:nginx /var/www/site/data
+    chmod -R 755 /var/www/site/data
+    echo "[start] ✓ Persistent data directory configured"
+else
+    echo "[start] ⚠ Persistent data directory not mounted - scans will not persist"
+fi
 
 # Ensure PHP-FPM can write to necessary directories
 chown -R nginx:nginx /var/www/site/scan

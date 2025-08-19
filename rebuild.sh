@@ -9,9 +9,15 @@ if ! docker build -t homepage .; then
     exit 1
 fi
 
-echo "Starting..."
-# Create data directory if it doesn't exist
+echo "Setting up persistent data directory..."
+# Create data directory with proper permissions
+mkdir -p "$(pwd)/data/scan"
 mkdir -p "$(pwd)/data"
+# Set permissions for nginx user (82:82 in Alpine)
+sudo chown -R 82:82 "$(pwd)/data" 2>/dev/null || chown -R www-data:www-data "$(pwd)/data" 2>/dev/null || true
+sudo chmod -R 755 "$(pwd)/data"
+
+echo "Starting..."
 docker run -d \
   --name homepage \
   --network host \
