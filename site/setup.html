@@ -549,7 +549,7 @@
                 showStatus('Saving changes...', 'success');
                 
                 // Save categories
-                await fetch('/setup-data.php', {
+                const categoriesResponse = await fetch('/setup-data.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -558,8 +558,13 @@
                     })
                 });
                 
+                if (!categoriesResponse.ok) {
+                    const error = await categoriesResponse.json();
+                    throw new Error('Categories save failed: ' + (error.error || 'Unknown error'));
+                }
+                
                 // Save service assignments
-                await fetch('/setup-data.php', {
+                const assignmentsResponse = await fetch('/setup-data.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -568,13 +573,18 @@
                     })
                 });
                 
+                if (!assignmentsResponse.ok) {
+                    const error = await assignmentsResponse.json();
+                    throw new Error('Assignments save failed: ' + (error.error || 'Unknown error'));
+                }
+                
                 // Update services with new categories and save
                 const updatedServices = services.map(service => ({
                     ...service,
                     group: categories[serviceAssignments[service.title] || service.group] || service.group
                 }));
                 
-                await fetch('/setup-data.php', {
+                const servicesResponse = await fetch('/setup-data.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -582,6 +592,11 @@
                         services: updatedServices
                     })
                 });
+                
+                if (!servicesResponse.ok) {
+                    const error = await servicesResponse.json();
+                    throw new Error('Services save failed: ' + (error.error || 'Unknown error'));
+                }
                 
                 showStatus('All changes saved successfully! ✅', 'success');
                 

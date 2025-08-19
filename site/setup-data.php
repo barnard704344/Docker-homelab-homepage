@@ -10,9 +10,18 @@ $assignmentsFile = '/var/www/site/data/service-assignments.json';
 $servicesFile = '/var/www/site/data/services.json';
 $servicesCompatFile = '/var/www/site/services.json';
 
-// Ensure data directory exists
+// Ensure data directory exists with proper permissions
 if (!is_dir('/var/www/site/data')) {
-    mkdir('/var/www/site/data', 0755, true);
+    mkdir('/var/www/site/data', 0777, true);
+    chmod('/var/www/site/data', 0777);
+}
+
+// Try to fix permissions if we can't write
+if (!is_writable('/var/www/site/data')) {
+    // Try to fix permissions
+    @chmod('/var/www/site/data', 0777);
+    @chown('/var/www/site/data', 'nginx');
+    @chgrp('/var/www/site/data', 'nginx');
 }
 
 // Default categories
@@ -44,9 +53,30 @@ function saveJsonFile($file, $data) {
         throw new Exception('Failed to encode JSON');
     }
     
-    if (file_put_contents($file, $json) === false) {
-        throw new Exception('Failed to write file: ' . $file);
+    // Ensure directory exists and is writable
+    $dir = dirname($file);
+    if (!is_dir($dir)) {
+        mkdir($dir, 0777, true);
     }
+    
+    // Try to fix permissions if needed
+    if (!is_writable($dir)) {
+        @chmod($dir, 0777);
+    }
+    
+    if (file_put_contents($file, $json) === false) {
+        // Try to fix file permissions and try again
+        if (file_exists($file)) {
+            @chmod($file, 0666);
+        }
+        
+        if (file_put_contents($file, $json) === false) {
+            throw new Exception('Failed to write file: ' . $file . ' (Directory writable: ' . (is_writable($dir) ? 'yes' : 'no') . ')');
+        }
+    }
+    
+    // Ensure file is readable
+    @chmod($file, 0666);
     
     return true;
 }
