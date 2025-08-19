@@ -48,36 +48,7 @@
       margin-bottom: 30px;
       flex-wrap: wrap;
     }
-    
-    .search-box {
-      position: relative;
-      flex: 1;
-      max-width: 400px;
-    }
-    
-    #search {
-      width: 100%;
-      padding: 12px 40px 12px 16px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: var(--card-bg);
-      color: var(--fg);
-      font-size: 16px;
-    }
-    
-    #search:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
-    
-    .search-icon {
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--muted);
-    }
-    
+
     .btn {
       padding: 10px 16px;
       border: 1px solid var(--border);
@@ -276,10 +247,6 @@
   
   <main>
     <div class="toolbar">
-      <div class="search-box">
-        <input type="text" id="search" placeholder="Search services... (press / to focus)" />
-        <span class="search-icon">🔍</span>
-      </div>
       <button class="btn" id="toggle-pins">📌 Pinned</button>
       <button class="btn" id="refresh">🔄 Refresh</button>
       <button class="btn" id="run-scan">🔍 Run Scan</button>
@@ -288,7 +255,7 @@
     <div id="grid" class="grid" aria-live="polite"></div>
     
     <footer class="muted">
-      <p>Tip: pin your most used services with the 📌 button • Press "/" to search</p>
+      <p>Tip: pin your most used services with the 📌 button</p>
       <p><a href="#" onclick="checkDebug()" style="color: var(--muted); font-size: 12px;">Debug Info</a></p>
     </footer>
   </main>
@@ -308,7 +275,6 @@
     
     // --- DOM references
     const grid = document.getElementById('grid');
-    const search = document.getElementById('search');
     const togglePinsBtn = document.getElementById('toggle-pins');
     const refreshBtn = document.getElementById('refresh');
     const runScanBtn = document.getElementById('run-scan');
@@ -599,25 +565,7 @@
     // --- Main render function
     function render() {
       grid.innerHTML = '';
-      const term = (search.value || '').trim().toLowerCase();
       let links = mergedLinks();
-
-      // Filter by search term
-      if (term) {
-        links = links.filter(link =>
-          (link.title || '').toLowerCase().includes(term) ||
-          (link.desc || '').toLowerCase().includes(term) ||
-          (link.tags || []).join(',').toLowerCase().includes(term) ||
-          (link.group || '').toLowerCase().includes(term) ||
-          (() => {
-            try {
-              return new URL(link.url).hostname.toLowerCase().includes(term);
-            } catch {
-              return false;
-            }
-          })()
-        );
-      }
 
       // Filter by pinned if active
       if (showingPinnedOnly) {
@@ -684,15 +632,6 @@
     }
 
     // --- Event listeners
-    search.addEventListener('input', debounce(() => render(), 300));
-    
-    search.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        search.value = '';
-        render();
-      }
-    });
-
     togglePinsBtn.addEventListener('click', () => {
       showingPinnedOnly = !showingPinnedOnly;
       togglePinsBtn.classList.toggle('active', showingPinnedOnly);
@@ -756,14 +695,6 @@
           runScanBtn.textContent = '🔍 Run Scan';
           runScanBtn.disabled = false;
         }, 3000);
-      }
-    });
-
-    // Global search shortcut
-    document.addEventListener('keydown', (e) => {
-      if (e.key === '/' && e.target !== search) {
-        e.preventDefault();
-        search.focus();
       }
     });
 
