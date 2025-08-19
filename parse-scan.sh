@@ -116,22 +116,9 @@ while IFS= read -r line || [[ -n "$line" ]]; do
         port="${BASH_REMATCH[1]}"
         service="${BASH_REMATCH[2]}"
         
-        # Focus on web-related ports
-        case $port in
-            80|443|8080|8443|3000|5000|8000|8888|8009)
-                current_ports+=("$port/$service")
-                echo "[discovery]   Found web port: $port ($service)"
-                ;;
-            *)
-                # Include other interesting ports but mark them
-                case $service in
-                    http*|https*)
-                        current_ports+=("$port/$service")
-                        echo "[discovery]   Found HTTP port: $port ($service)"
-                        ;;
-                esac
-                ;;
-        esac
+        # Include all discovered ports
+        current_ports+=("$port/$service")
+        echo "[discovery]   Found port: $port ($service)"
     fi
 done < "${SCAN_FILE}"
 
@@ -191,11 +178,76 @@ echo "[discovery] Creating JSON file..."
                             primary_url="https://$ip"
                             available_ports+=("443:https://$ip")
                             ;;
-                        8080|3000|5000|8000|8888|8009) 
-                            available_ports+=("$port:http://$ip:$port")
-                            if [[ "$primary_url" == "http://$ip" ]]; then
-                                primary_url="http://$ip:$port"
-                            fi
+                        22)
+                            available_ports+=("22:ssh://$ip:22")
+                            ;;
+                        21)
+                            available_ports+=("21:ftp://$ip:21")
+                            ;;
+                        23)
+                            available_ports+=("23:telnet://$ip:23")
+                            ;;
+                        25)
+                            available_ports+=("25:smtp://$ip:25")
+                            ;;
+                        53)
+                            available_ports+=("53:dns://$ip:53")
+                            ;;
+                        110)
+                            available_ports+=("110:pop3://$ip:110")
+                            ;;
+                        143)
+                            available_ports+=("143:imap://$ip:143")
+                            ;;
+                        993)
+                            available_ports+=("993:imaps://$ip:993")
+                            ;;
+                        995)
+                            available_ports+=("995:pop3s://$ip:995")
+                            ;;
+                        3128)
+                            available_ports+=("3128:http://$ip:3128")
+                            ;;
+                        *) 
+                            # For all other ports, try to determine protocol from service
+                            case $service in
+                                http*|*http*|web*)
+                                    available_ports+=("$port:http://$ip:$port")
+                                    if [[ "$primary_url" == "http://$ip" ]]; then
+                                        primary_url="http://$ip:$port"
+                                    fi
+                                    ;;
+                                https*|*https*)
+                                    available_ports+=("$port:https://$ip:$port")
+                                    if [[ "$primary_url" == "http://$ip" ]]; then
+                                        primary_url="https://$ip:$port"
+                                    fi
+                                    ;;
+                                ssh)
+                                    available_ports+=("$port:ssh://$ip:$port")
+                                    ;;
+                                ftp)
+                                    available_ports+=("$port:ftp://$ip:$port")
+                                    ;;
+                                telnet)
+                                    available_ports+=("$port:telnet://$ip:$port")
+                                    ;;
+                                smtp)
+                                    available_ports+=("$port:smtp://$ip:$port")
+                                    ;;
+                                *)
+                                    # Default to http for unknown services on common web ports
+                                    if [[ $port -gt 1000 ]] && [[ $port -lt 10000 ]]; then
+                                        available_ports+=("$port:http://$ip:$port")
+                                        if [[ "$primary_url" == "http://$ip" ]]; then
+                                            primary_url="http://$ip:$port"
+                                        fi
+                                    else
+                                        # For system ports, just show the raw port
+                                        available_ports+=("$port:tcp://$ip:$port")
+                                    fi
+                                    ;;
+                            esac
                             ;;
                     esac
                 fi
