@@ -249,7 +249,7 @@
     <div class="toolbar">
       <button class="btn" id="toggle-pins">📌 Pinned</button>
       <button class="btn" id="refresh">🔄 Refresh</button>
-      <button class="btn" id="run-scan">🔍 Run Scan</button>
+      <div class="btn" id="scan-status">🔍 Scan Status</div>
     </div>
     
     <div id="grid" class="grid" aria-live="polite"></div>
@@ -275,9 +275,10 @@
     const grid = document.getElementById('grid');
     const togglePinsBtn = document.getElementById('toggle-pins');
     const refreshBtn = document.getElementById('refresh');
-    const runScanBtn = document.getElementById('run-scan');
+    const scanStatusBtn = document.getElementById('scan-status');
     
     let showingPinnedOnly = false;
+    let scanStatusInterval;
 
     // --- Load dynamic links from services.json
     async function loadDynamicLinks() {
@@ -652,49 +653,80 @@
       }, 100);
     });
 
-    runScanBtn.addEventListener('click', async () => {
-      runScanBtn.textContent = '⏳ Scanning...';
-      runScanBtn.disabled = true;
-      
+    // --- Check scan status periodically
+    async function checkScanStatus() {
       try {
-        const response = await fetch('/run-scan', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          }
+        const response = await fetch('/scan-status.php', {
+          method: 'GET',
+          cache: 'no-cache'
         });
         
         if (response.ok) {
-          runScanBtn.textContent = '✅ Scan Started';
+          const status = await response.text();
           
-          // Wait a bit for scan to complete, then refresh services
-          setTimeout(async () => {
+          if (status.includes('running') || status.includes('scanning')) {
+            scanStatusBtn.textContent = '⏳ Scanning...';
+            scanStatusBtn.classList.add('active');
+          } else {
+            // Check when last scan was run
             try {
-              await loadDynamicLinks();
-              render();
-              runScanBtn.textContent = '🔄 Updated';
-            } catch (error) {
-              console.log('Auto-refresh failed:', error);
+              const scanResponse = await fetch('/scan.txt', { method: 'HEAD', cache: 'no-cache' });
+              if (scanResponse.ok) {
+                const lastModified = scanResponse.headers.get('last-modified');
+                if (lastModified) {
+                  const scanTime = new Date(lastModified);
+                  const now = new Date();
+                  const minutesAgo = Math.floor((now - scanTime) / (1000 * 60));
+                  
+                  if (minutesAgo < 1) {
+                    scanStatusBtn.textContent = '✅ Just Scanned';
+                  } else if (minutesAgo < 60) {
+                    scanStatusBtn.textContent = `🔍 ${minutesAgo}m ago`;
+                  } else {
+                    const hoursAgo = Math.floor(minutesAgo / 60);
+                    scanStatusBtn.textContent = `🔍 ${hoursAgo}h ago`;
+                  }
+                }
+              } else {
+                scanStatusBtn.textContent = '🔍 No Scans Yet';
+              }
+            } catch (e) {
+              scanStatusBtn.textContent = '🔍 Scan Status';
             }
-            
-            setTimeout(() => {
-              runScanBtn.textContent = '🔍 Run Scan';
-              runScanBtn.disabled = false;
-            }, 2000);
-          }, 25000); // Wait 25 seconds for scan to complete
-          
+            scanStatusBtn.classList.remove('active');
+          }
         } else {
-          throw new Error(`HTTP ${response.status}`);
+          scanStatusBtn.textContent = '🔍 Status Unknown';
+          scanStatusBtn.classList.remove('active');
         }
       } catch (error) {
-        console.error('Scan failed:', error);
-        runScanBtn.textContent = '❌ Scan Failed';
-        setTimeout(() => {
-          runScanBtn.textContent = '🔍 Run Scan';
-          runScanBtn.disabled = false;
-        }, 3000);
+        // Fallback: check scan file age
+        try {
+          const scanResponse = await fetch('/scan.txt', { method: 'HEAD', cache: 'no-cache' });
+          if (scanResponse.ok) {
+            const lastModified = scanResponse.headers.get('last-modified');
+            if (lastModified) {
+              const scanTime = new Date(lastModified);
+              const now = new Date();
+              const minutesAgo = Math.floor((now - scanTime) / (1000 * 60));
+              
+              if (minutesAgo < 2) {
+                scanStatusBtn.textContent = '✅ Just Scanned';
+              } else if (minutesAgo < 60) {
+                scanStatusBtn.textContent = `🔍 ${minutesAgo}m ago`;
+              } else {
+                scanStatusBtn.textContent = `🔍 ${Math.floor(minutesAgo / 60)}h ago`;
+              }
+            }
+          } else {
+            scanStatusBtn.textContent = '🔍 No Scans Yet';
+          }
+        } catch (e) {
+          scanStatusBtn.textContent = '🔍 Scan Status';
+        }
+        scanStatusBtn.classList.remove('active');
       }
-    });
+    }
 
     // --- Utility functions
     function debounce(func, wait) {
@@ -714,6 +746,10 @@
       await loadPinsFromServer(); // Load pins from server first
       await loadDynamicLinks();
       render();
+      
+      // Start scan status checking
+      checkScanStatus(); // Initial check
+      scanStatusInterval = setInterval(checkScanStatus, 30000); // Check every 30 seconds
     })();
 
     // --- Debug function
