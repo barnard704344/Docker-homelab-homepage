@@ -2,6 +2,16 @@
 data/*
 !data/.gitkeep
 
+# Scan results and temporary files (avoid conflicts)
+scan.txt
+scan/
+services.json
+pins.json
+
 # Container logs and temporary files
 *.log
 .DS_Store
+
+# Local configuration files (if any)
+local.env
+docker-compose.override.yml
