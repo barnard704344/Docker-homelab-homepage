@@ -621,8 +621,9 @@
 
       // Filter by pinned if active
       if (showingPinnedOnly) {
-        const pins = new Set(getPins());
-        links = links.filter(link => pins.has(link.title));
+        const pins = getPins();
+        const pinnedTitles = new Set(pins.map(p => p.title));
+        links = links.filter(link => pinnedTitles.has(link.title));
       }
 
       const groups = groupsFromLinks(links);
