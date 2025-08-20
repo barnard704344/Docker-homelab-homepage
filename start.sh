@@ -27,9 +27,9 @@ mkdir -p /var/log/nginx
 chown -R nginx:nginx /var/www/site
 # NOTE: Don't set blanket 755 permissions here - it overwrites our 777 data directory
 chmod 755 /var/www/site
-# Set 755 only for the site files, not the data directory
-find /var/www/site -type f -not -path "*/data/*" -exec chmod 644 {} \;
-find /var/www/site -type d -not -path "*/data*" -exec chmod 755 {} \;
+# Set 755 only for the site files, not the data directory - be very explicit
+find /var/www/site -type f -not -path "/var/www/site/data/*" -exec chmod 644 {} \;
+find /var/www/site -type d -not -path "/var/www/site/data" -not -path "/var/www/site/data/*" -exec chmod 755 {} \;
 
 # Force create and setup persistent data directory with maximum permissions
 echo "[start] Setting up persistent data directory..."
@@ -228,6 +228,15 @@ php-fpm82 -D
 
 # Wait a moment for PHP-FPM to fully start
 sleep 2
+
+echo "[start] FINAL: Setting data directory permissions before starting nginx..."
+# This is the LAST chance to set permissions correctly
+mkdir -p /var/www/site/data
+chmod 777 /var/www/site/data
+chown nginx:nginx /var/www/site/data
+# Verify one last time
+FINAL_PERMS=$(stat -c "%a" /var/www/site/data 2>/dev/null || echo "000")
+echo "[start] Final data directory permissions: $FINAL_PERMS"
 
 echo "[start] Starting nginx..."
 exec nginx -g 'daemon off;'

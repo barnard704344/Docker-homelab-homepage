@@ -6,49 +6,9 @@
 echo "=== Docker Homelab Homepage Setup ==="
 echo "Setting up container with persistent storage..."
 
-# Make all scripts executable
-echo "Making scripts executable..."
-chmod +x rebuild.sh run.sh scan.sh parse-scan.sh start.sh 2>/dev/null || true
-
-# Setup data directory with proper permissions
-echo "Setting up persistent data directory..."
-mkdir -p ./data/scan
+# Create host data directory for volume mount
+echo "Creating host data directory..."
 mkdir -p ./data
-
-# Try to set nginx permissions (works on most systems)
-if command -v sudo >/dev/null 2>&1; then
-    echo "Setting permissions using sudo..."
-    # Try multiple strategies to ensure permissions work
-    sudo chown -R 82:82 ./data 2>/dev/null || \
-    sudo chown -R 33:33 ./data 2>/dev/null || \
-    sudo chown -R www-data:www-data ./data 2>/dev/null || true
-    
-    # Also set broader permissions to ensure container can write
-    sudo chmod -R 777 ./data
-    echo "Applied chmod 777 to data directory for maximum compatibility"
-else
-    echo "No sudo available, setting generic permissions..."
-    chmod -R 777 ./data 2>/dev/null || true
-fi
-
-# Create essential data files with proper permissions
-echo "Creating essential data files..."
-touch ./data/categories.json ./data/service-assignments.json ./data/services.json 2>/dev/null || true
-chmod 666 ./data/*.json 2>/dev/null || true
-
-# Set host directory to 777 as well (this is critical for volume mounts)
-echo "Setting host data directory permissions to 777..."
-chmod 777 ./data
-chmod -R 777 ./data
-
-# Double-check the data directory is accessible
-if [[ -d ./data ]]; then
-    echo "Data directory exists and has permissions: $(ls -ld ./data)"
-    echo "Data files:"
-    ls -la ./data/ 2>/dev/null || echo "No files in data directory yet"
-else
-    echo "WARNING: Data directory does not exist after creation attempt"
-fi
 
 echo "Stopping existing container..."
 docker stop homepage 2>/dev/null || true
@@ -69,68 +29,30 @@ docker run -d \
   -v "$(pwd)/data:/var/www/site/data" \
   homepage
 
-echo "Waiting for container to start..."
-sleep 5
+echo "Waiting for container to initialize..."
+sleep 8
 
-echo "Ensuring data directory permissions inside container..."
-# Fix permissions inside the container after it starts - be more aggressive
-docker exec homepage sh -c 'mkdir -p /var/www/site/data' 2>/dev/null || true
-docker exec homepage sh -c 'chmod 777 /var/www/site/data' 2>/dev/null || true
-docker exec homepage sh -c 'chown -R nginx:nginx /var/www/site/data' 2>/dev/null || true
-
-# Also try with root user to ensure it works
-docker exec -u root homepage sh -c 'chmod 777 /var/www/site/data' 2>/dev/null || true
-docker exec -u root homepage sh -c 'chown -R nginx:nginx /var/www/site/data' 2>/dev/null || true
-
-# Create essential JSON files inside container if they don't exist
-docker exec homepage sh -c 'touch /var/www/site/data/categories.json' 2>/dev/null || true
-docker exec homepage sh -c 'touch /var/www/site/data/service-assignments.json' 2>/dev/null || true  
-docker exec homepage sh -c 'touch /var/www/site/data/services.json' 2>/dev/null || true
-docker exec homepage sh -c 'chmod 666 /var/www/site/data/*.json' 2>/dev/null || true
-
-# Final permission check and force if needed
-docker exec -u root homepage sh -c 'chmod -R 777 /var/www/site/data' 2>/dev/null || true
-
-# CRITICAL: Also fix host directory permissions (volume mount issue)
-echo "Fixing host directory permissions (critical for volume mounts)..."
-chmod 777 ./data
-chmod -R 777 ./data
-
-echo "Verifying permissions setup..."
-echo "Host directory permissions:"
-ls -la ./data
-echo "Container directory permissions:"
-docker exec homepage ls -la /var/www/site/data 2>/dev/null || echo "Could not list data directory"
-
-# Test write permissions
-echo "Testing write permissions..."
-docker exec homepage sh -c 'echo "test" > /var/www/site/data/test-write.txt && rm /var/www/site/data/test-write.txt' 2>/dev/null && echo "✅ Write test PASSED" || echo "❌ Write test FAILED"
-
-echo "Checking status..."
-sleep 2
-docker ps -f name=homepage
-
-echo "Testing category management permissions..."
-sleep 3
-if curl -s http://localhost/setup-debug.php | head -10; then
-    echo ""
-    echo "✅ Setup completed successfully!"
+echo "Checking container status..."
+if docker ps -f name=homepage | grep -q homepage; then
+    echo "✅ Container is running"
 else
-    echo ""
-    echo "⚠️  Debug endpoint not ready yet, but container is running"
+    echo "❌ Container failed to start"
+    echo "Check logs with: docker logs homepage"
+    exit 1
 fi
 
 echo ""
-echo "Setup complete! Your homepage should be available at:"
+echo "🎉 Setup complete! Your homepage is available at:"
 echo "  http://$(hostname -I | awk '{print $1}')/"
 echo "  http://localhost/"
 echo ""
-echo "🔧 Setup page: http://$(hostname -I | awk '{print $1}')/setup.html"
-echo "🐛 Debug info: http://$(hostname -I | awk '{print $1}')/setup-debug.php"
+echo "� Management interfaces:"
+echo "  �🔧 Setup page: http://$(hostname -I | awk '{print $1}')/setup.html" 
+echo "  🐛 Debug info: http://$(hostname -I | awk '{print $1}')/setup-debug.php"
 echo ""
-echo "To check logs: docker logs homepage"
-echo "To test category creation:"
-echo "  curl -X POST -H 'Content-Type: application/json' -d '{\"action\":\"save_categories\",\"categories\":{\"test\":\"Test Category\"}}' http://localhost/setup-data.php"
+echo "📝 Useful commands:"
+echo "  View logs: docker logs homepage"
+echo "  Stop: docker stop homepage" 
+echo "  Restart: docker restart homepage"
 echo ""
-echo "If category saving fails, check permissions with:"
-echo "  docker exec homepage ls -la /var/www/site/data"
+echo "All permissions and configuration are handled automatically inside the container."
