@@ -41,36 +41,79 @@ echo "[start] Setting up persistent data directory..."
 mkdir -p /var/www/site/data
 mkdir -p /var/www/site/data/scan
 
-# CRITICAL: Docker volume mounts can override host permissions due to UID mapping
-# We need to force 777 permissions inside the container after mount
-echo "[start] Forcing 777 permissions inside container after volume mount..."
-chmod -R 777 /var/www/site/data
-chown -R nginx:nginx /var/www/site/data
+# Setup persistent data directory - Docker volume mount permission workaround
+echo "[start] Setting up persistent data directory..."
+mkdir -p /var/www/site/data
+mkdir -p /var/www/site/data/scan
 
-# Verify permissions were set correctly
-ACTUAL_PERMS=$(stat -c "%a" /var/www/site/data 2>/dev/null || echo "000")
-if [ "$ACTUAL_PERMS" = "777" ]; then
-    echo "[start] ✅ Data directory permissions confirmed: 777"
-else
-    echo "[start] ❌ WARNING: Data directory permissions are: $ACTUAL_PERMS (should be 777)"
-    # Try alternative approaches
-    chmod 777 /var/www/site/data
-    chmod -R 666 /var/www/site/data/*
-    chmod 777 /var/www/site/data
-    echo "[start] Attempted permission fixes - checking again..."
-    FINAL_PERMS=$(stat -c "%a" /var/www/site/data 2>/dev/null || echo "000")
-    echo "[start] Final permissions: $FINAL_PERMS"
+# CRITICAL: Docker volume mounts preserve host permissions and cannot be changed
+# Workaround: Add nginx user to root group and set group write permissions
+echo "[start] Working around Docker volume mount permission restrictions..."
+
+# Get the current owner and group of the mounted directory
+OWNER=$(stat -c "%U" /var/www/site/data 2>/dev/null || echo "root")
+GROUP=$(stat -c "%G" /var/www/site/data 2>/dev/null || echo "root")
+echo "[start] Volume mount owner: $OWNER, group: $GROUP"
+
+# Try multiple approaches to enable writing
+echo "[start] Attempting permission fixes..."
+
+# Method 1: Try to change permissions (may fail with volume mounts)
+chmod -R 777 /var/www/site/data 2>/dev/null || echo "[start] chmod failed (expected with volume mounts)"
+
+# Method 2: Add nginx to various groups that might have access
+addgroup nginx root 2>/dev/null || echo "[start] nginx already in root group"
+addgroup nginx $GROUP 2>/dev/null || echo "[start] nginx already in $GROUP group"
+
+# Method 3: Change group ownership if possible
+chgrp -R nginx /var/www/site/data 2>/dev/null || echo "[start] chgrp failed (expected with volume mounts)"
+
+# Method 4: Set group write permissions
+chmod -R g+w /var/www/site/data 2>/dev/null || echo "[start] group write failed"
+
+# Method 5: Make nginx user part of the same UID as the volume mount owner
+if [ "$OWNER" != "nginx" ] && [ "$OWNER" != "root" ]; then
+    echo "[start] Attempting to match UIDs..."
+    OWNER_UID=$(stat -c "%u" /var/www/site/data 2>/dev/null || echo "0")
+    if [ "$OWNER_UID" != "0" ]; then
+        # Change nginx user to match the volume mount UID
+        usermod -u $OWNER_UID nginx 2>/dev/null || echo "[start] usermod failed"
+        chown -R nginx:nginx /var/www/site/data 2>/dev/null || echo "[start] chown after usermod failed"
+    fi
 fi
 
-# Test write capability
+# Final verification
+ACTUAL_PERMS=$(stat -c "%a" /var/www/site/data 2>/dev/null || echo "000")
+echo "[start] Final directory permissions: $ACTUAL_PERMS"
+
+# Test write capability with different approaches
 echo "[start] Testing write capability..."
 TEST_FILE="/var/www/site/data/write-test-$$"
+
+# Test as root
 if echo "test" > "$TEST_FILE" 2>/dev/null; then
     rm -f "$TEST_FILE"
-    echo "[start] ✅ Write test successful"
+    echo "[start] ✅ Root can write to data directory"
+    ROOT_CAN_WRITE=1
 else
-    echo "[start] ❌ Write test failed - trying as nginx user"
-    su -s /bin/sh nginx -c "echo test > $TEST_FILE" 2>/dev/null && rm -f "$TEST_FILE" && echo "[start] ✅ Write as nginx successful" || echo "[start] ❌ Write as nginx failed"
+    echo "[start] ❌ Root cannot write to data directory"
+    ROOT_CAN_WRITE=0
+fi
+
+# Test as nginx user
+if su -s /bin/sh nginx -c "echo test > $TEST_FILE" 2>/dev/null; then
+    rm -f "$TEST_FILE"
+    echo "[start] ✅ nginx user can write to data directory"
+    NGINX_CAN_WRITE=1
+else
+    echo "[start] ❌ nginx user cannot write to data directory"
+    NGINX_CAN_WRITE=0
+fi
+
+# If nginx can't write but root can, we'll need to run PHP as root
+if [ $ROOT_CAN_WRITE -eq 1 ] && [ $NGINX_CAN_WRITE -eq 0 ]; then
+    echo "[start] ⚠️  Only root can write - this may cause category management issues"
+    echo "[start] Consider running container with: docker run --user root"
 fi
 
 # Create empty files with proper permissions if they don't exist
