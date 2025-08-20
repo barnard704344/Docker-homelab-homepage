@@ -621,6 +621,13 @@
                 return;
             }
             
+            // Check if port is already in default homelab ports
+            const defaultPorts = [21,22,23,25,53,80,110,143,443,993,995,1433,2375,2376,3000,3001,3306,3334,4200,5000,5001,5380,5432,6379,7000,8000,8006,8007,8080,8081,8086,8090,8096,8443,8888,9000,9090,9100,9187,9443,9981,10000,11434,19999,32168,32400];
+            if (defaultPorts.includes(port)) {
+                showStatus(`Port ${port} is already included in the default homelab port scan`, 'error');
+                return;
+            }
+            
             const portInfo = { port, description };
             customPorts.push(portInfo);
             

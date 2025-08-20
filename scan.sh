@@ -54,11 +54,21 @@ for NET in ${SUBNETS}; do
   # Load additional custom ports from setup page
   CUSTOM_PORTS_FILE="/var/www/site/data/custom-ports.json"
   if [[ -f "$CUSTOM_PORTS_FILE" ]]; then
-    # Extract port numbers from JSON and add to HOMELAB_PORTS
-    CUSTOM_PORTS=$(cat "$CUSTOM_PORTS_FILE" | grep -o '"port":[0-9]*' | cut -d':' -f2 | tr '\n' ',' | sed 's/,$//')
+    # Extract port numbers from JSON more robustly
+    if command -v jq >/dev/null 2>&1; then
+      # Use jq if available for proper JSON parsing
+      CUSTOM_PORTS=$(jq -r '.[].port' "$CUSTOM_PORTS_FILE" 2>/dev/null | tr '\n' ',' | sed 's/,$//')
+    else
+      # Fallback to grep/sed parsing
+      CUSTOM_PORTS=$(grep -o '"port":[[:space:]]*[0-9]*' "$CUSTOM_PORTS_FILE" | grep -o '[0-9]*' | tr '\n' ',' | sed 's/,$//')
+    fi
+    
     if [[ -n "$CUSTOM_PORTS" ]]; then
-      HOMELAB_PORTS="${HOMELAB_PORTS},${CUSTOM_PORTS}"
+      # Combine ports and remove duplicates
+      ALL_PORTS="${HOMELAB_PORTS},${CUSTOM_PORTS}"
+      HOMELAB_PORTS=$(echo "$ALL_PORTS" | tr ',' '\n' | sort -n | uniq | tr '\n' ',' | sed 's/,$//')
       echo "Added custom ports: ${CUSTOM_PORTS}" >> "${OUTFILE}"
+      echo "Final port list: ${HOMELAB_PORTS}" >> "${OUTFILE}"
     fi
   fi
   
