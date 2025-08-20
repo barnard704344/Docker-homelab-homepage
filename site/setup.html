@@ -288,7 +288,15 @@
         <!-- Categories Management -->
         <div class="section">
             <h2>📁 Manage Categories</h2>
-            <p>Rename existing categories to organize your services.</p>
+            <p>Rename existing categories or create new ones. Services will be automatically reassigned when you rename categories.</p>
+            
+            <div class="inline-form">
+                <div class="form-group">
+                    <label for="new-category-name">Add New Category</label>
+                    <input type="text" id="new-category-name" placeholder="e.g., Gaming, IoT Devices, Security">
+                </div>
+                <button class="btn primary" onclick="addCategory()">➕ Add Category</button>
+            </div>
             
             <div id="categories-list" class="category-list">
                 <!-- Categories will be loaded here -->
@@ -456,6 +464,64 @@
                     `<option value="${key}">${escapeHtml(name)}</option>`
                 ).join('');
             });
+        }
+        
+        // Add new category
+        async function addCategory() {
+            const input = document.getElementById('new-category-name');
+            const name = input.value.trim();
+            
+            if (!name) {
+                showStatus('Please enter a category name', 'error');
+                return;
+            }
+            
+            // Create a clean key from the name
+            const key = name.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+            
+            if (!key) {
+                showStatus('Please enter a valid category name', 'error');
+                return;
+            }
+            
+            if (categories[key]) {
+                showStatus('A category with this name already exists', 'error');
+                return;
+            }
+            
+            // Add to local categories
+            categories[key] = name;
+            input.value = '';
+            
+            try {
+                // Save to server
+                const response = await fetch('/setup-data.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'save_categories',
+                        categories: categories
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    renderCategories();
+                    updateCategorySelects();
+                    showStatus(`Category "${name}" added successfully`, 'success');
+                } else {
+                    // Remove from local if server save failed
+                    delete categories[key];
+                    showStatus('Failed to save category: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                // Remove from local if server save failed
+                delete categories[key];
+                showStatus('Error saving category: ' + error.message, 'error');
+            }
         }
         
         // Update category name

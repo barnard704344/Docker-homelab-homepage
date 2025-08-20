@@ -153,8 +153,12 @@ try {
                     throw new Exception('Invalid categories data');
                 }
                 
-                saveJsonFile($categoriesFile, $input['categories']);
-                echo json_encode(['success' => true, 'message' => 'Categories saved']);
+                $result = saveJsonFile('categories.json', $input['categories']);
+                if (isset($result['error'])) {
+                    echo json_encode($result);
+                } else {
+                    echo json_encode(['success' => true, 'message' => 'Categories saved']);
+                }
                 break;
                 
             case 'save_assignments':
