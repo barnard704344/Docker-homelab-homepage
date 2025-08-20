@@ -368,9 +368,6 @@ echo "[discovery] Creating JSON file..."
                             esac
                             ;;
                     esac
-                                    available_ports+=("$port:smtp://$ip:$port")
-                                    ;;
-                                *)
                                     # Default to http for unknown services on common web ports
                                     if [[ $port -gt 1000 ]] && [[ $port -lt 10000 ]]; then
                                         available_ports+=("$port:http://$ip:$port")
