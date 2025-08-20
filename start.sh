@@ -32,10 +32,11 @@ echo "[start] Setting up persistent data directory..."
 mkdir -p /var/www/site/data
 mkdir -p /var/www/site/data/scan
 
-# Set maximum permissions for category management to work
+# Set maximum permissions for category management to work - be very aggressive
 echo "[start] Setting 777 permissions for data directory..."
 chmod 777 /var/www/site/data
 chmod 777 /var/www/site/data/scan
+chmod -R 777 /var/www/site/data
 
 # Try different ownership approaches
 echo "[start] Setting ownership..."
@@ -43,14 +44,18 @@ chown -R nginx:nginx /var/www/site/data 2>/dev/null || true
 chown -R www-data:www-data /var/www/site/data 2>/dev/null || true
 chown -R nobody:nobody /var/www/site/data 2>/dev/null || true
 
-# Force permissions again after ownership changes
+# Force permissions again after ownership changes - this is critical
 chmod -R 777 /var/www/site/data
+chmod 777 /var/www/site/data
 
 # Create empty files with proper permissions if they don't exist
 touch /var/www/site/data/categories.json 2>/dev/null || true
 touch /var/www/site/data/service-assignments.json 2>/dev/null || true
 touch /var/www/site/data/services.json 2>/dev/null || true
 chmod 666 /var/www/site/data/*.json 2>/dev/null || true
+
+# Final aggressive permission set
+chmod -R 777 /var/www/site/data
 
 # Test write capability extensively
 echo "[start] Testing write capability..."

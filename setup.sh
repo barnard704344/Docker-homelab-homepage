@@ -68,19 +68,30 @@ echo "Waiting for container to start..."
 sleep 5
 
 echo "Ensuring data directory permissions inside container..."
-# Fix permissions inside the container after it starts
-docker exec homepage mkdir -p /var/www/site/data 2>/dev/null || true
-docker exec homepage chmod -R 777 /var/www/site/data 2>/dev/null || true
-docker exec homepage chown -R nginx:nginx /var/www/site/data 2>/dev/null || true
+# Fix permissions inside the container after it starts - be more aggressive
+docker exec homepage sh -c 'mkdir -p /var/www/site/data' 2>/dev/null || true
+docker exec homepage sh -c 'chmod 777 /var/www/site/data' 2>/dev/null || true
+docker exec homepage sh -c 'chown -R nginx:nginx /var/www/site/data' 2>/dev/null || true
+
+# Also try with root user to ensure it works
+docker exec -u root homepage sh -c 'chmod 777 /var/www/site/data' 2>/dev/null || true
+docker exec -u root homepage sh -c 'chown -R nginx:nginx /var/www/site/data' 2>/dev/null || true
 
 # Create essential JSON files inside container if they don't exist
-docker exec homepage touch /var/www/site/data/categories.json 2>/dev/null || true
-docker exec homepage touch /var/www/site/data/service-assignments.json 2>/dev/null || true  
-docker exec homepage touch /var/www/site/data/services.json 2>/dev/null || true
-docker exec homepage chmod 666 /var/www/site/data/*.json 2>/dev/null || true
+docker exec homepage sh -c 'touch /var/www/site/data/categories.json' 2>/dev/null || true
+docker exec homepage sh -c 'touch /var/www/site/data/service-assignments.json' 2>/dev/null || true  
+docker exec homepage sh -c 'touch /var/www/site/data/services.json' 2>/dev/null || true
+docker exec homepage sh -c 'chmod 666 /var/www/site/data/*.json' 2>/dev/null || true
+
+# Final permission check and force if needed
+docker exec -u root homepage sh -c 'chmod -R 777 /var/www/site/data' 2>/dev/null || true
 
 echo "Verifying permissions setup..."
 docker exec homepage ls -la /var/www/site/data 2>/dev/null || echo "Could not list data directory"
+
+# Test write permissions
+echo "Testing write permissions..."
+docker exec homepage sh -c 'echo "test" > /var/www/site/data/test-write.txt && rm /var/www/site/data/test-write.txt' 2>/dev/null && echo "✅ Write test PASSED" || echo "❌ Write test FAILED"
 
 echo "Checking status..."
 sleep 2
