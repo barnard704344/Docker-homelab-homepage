@@ -3,8 +3,50 @@ set -e
 
 # Parse nmap scan results and generate services.json for the homepage
 SCAN_FILE="/var/www/site/data/scan/last-scan.txt"
-SERVICES_FILE="/var/www/site/data/services.json"
-# Also create services.json in the web root for backward compatibility
+SERVICES_F# Load custom category assignments and names
+declare -A category_assignments
+declare -A category_names
+declare -A custom_ports
+if [[ -f "/var/www/site/data/service-assignments.json" ]]; then
+    echo "[discovery] Loading existing category assignments..."
+    if command -v jq >/dev/null 2>&1; then
+        while IFS="=" read -r key value; do
+            category_assignments["$key"]="$value"
+        done < <(jq -r 'to_entries | .[] | "\(.key)=\(.value)"' /var/www/site/data/service-assignments.json 2>/dev/null || true)
+    fi
+fi
+
+if [[ -f "/var/www/site/data/categories.json" ]]; then
+    echo "[discovery] Loading category names..."
+    if command -v jq >/dev/null 2>&1; then
+        while IFS="=" read -r key value; do
+            category_names["$key"]="$value"
+        done < <(jq -r 'to_entries | .[] | "\(.key)=\(.value)"' /var/www/site/data/categories.json 2>/dev/null || true)
+    fi
+fi
+
+# Load custom ports to treat them as HTTP
+if [[ -f "/var/www/site/data/custom-ports.json" ]]; then
+    echo "[discovery] Loading custom ports for HTTP treatment..."
+    if command -v jq >/dev/null 2>&1; then
+        while IFS= read -r port; do
+            custom_ports["$port"]="1"
+        done < <(jq -r '.[].port' /var/www/site/data/custom-ports.json 2>/dev/null || true)
+    fi
+fiata/services.                80|81|8000|8008|8080|8081|8090|8096|8888|9000)
+                    # Standard HTTP ports
+                    if [[ -z "$primary_url" ]]; then
+                        primary_url="http://$ip:$port"
+                    fi
+                    available_ports+=("$port:http://$ip:$port")
+                    ;;
+                443|8443|9443)
+                    # Standard HTTPS ports
+                    if [[ -z "$primary_url" ]]; then
+                        primary_url="https://$ip:$port"
+                    fi
+                    available_ports+=("$port:https://$ip:$port")
+                    ;; create services.json in the web root for backward compatibility
 SERVICES_FILE_COMPAT="/var/www/site/services.json"
 
 echo "[discovery] Parsing scan results from ${SCAN_FILE}..."
@@ -180,7 +222,14 @@ for service_line in "${services[@]}"; do
             port_descriptions+=("$port ($service)")
             
             # Determine URL based on port and service
-            case $port in
+            # First check if this is a custom port from setup page - treat all as HTTP
+            if [[ -n "${custom_ports[$port]}" ]]; then
+                if [[ -z "$primary_url" ]]; then
+                    primary_url="http://$ip:$port"
+                fi
+                available_ports+=("$port:http://$ip:$port")
+            else
+                case $port in
                 80) 
                     primary_url="http://$ip"
                     available_ports+=("$port:http://$ip")
@@ -231,8 +280,8 @@ for service_line in "${services[@]}"; do
                             available_ports+=("$port:https://$ip:$port")
                             ;;
                         *)
-                            # Default to http for high ports, raw for system ports
-                            if [[ $port -gt 1000 ]]; then
+                            # Default to http for web-like ports, raw for system ports
+                            if [[ $port -gt 1000 ]] || [[ $port == 81 ]] || [[ $port == 82 ]] || [[ $port == 83 ]] || [[ $port -ge 8000 && $port -le 8999 ]] || [[ $port -ge 9000 && $port -le 9999 ]]; then
                                 if [[ -z "$primary_url" ]]; then
                                     primary_url="http://$ip:$port"
                                 fi
@@ -244,6 +293,7 @@ for service_line in "${services[@]}"; do
                     esac
                     ;;
             esac
+            fi
         fi
     done
     
