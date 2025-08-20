@@ -6,9 +6,11 @@
 echo "=== Docker Homelab Homepage Setup ==="
 echo "Setting up container with persistent storage..."
 
-# Create host data directory for volume mount
-echo "Creating host data directory..."
+# Create host data directory for volume mount with proper permissions
+echo "Creating host data directory with 777 permissions..."
 mkdir -p ./data
+chmod 777 ./data
+echo "Host data directory permissions set to 777"
 
 echo "Stopping existing container..."
 docker stop homepage 2>/dev/null || true
