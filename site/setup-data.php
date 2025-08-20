@@ -127,7 +127,25 @@ try {
                 
             case 'get_assignments':
                 $assignments = loadJsonFile($assignmentsFile, []);
-                echo json_encode($assignments);
+                // Debug: Check what we loaded
+                error_log("DEBUG: assignments loaded: " . json_encode($assignments));
+                error_log("DEBUG: assignments type: " . gettype($assignments));
+                error_log("DEBUG: assignments empty: " . (empty($assignments) ? 'true' : 'false'));
+                
+                // Ensure assignments is always an object, not array
+                if (is_array($assignments) && empty($assignments)) {
+                    $assignments = new stdClass();
+                    error_log("DEBUG: converted empty array to object");
+                } elseif (!is_array($assignments) && !is_object($assignments)) {
+                    $assignments = new stdClass();
+                    error_log("DEBUG: converted non-array/object to object");
+                }
+                
+                // Check what we're about to send
+                $output = json_encode($assignments);
+                error_log("DEBUG: final output: " . $output);
+                
+                echo $output;
                 break;
                 
             case 'get_services':
