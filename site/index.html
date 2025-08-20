@@ -306,7 +306,7 @@
     // --- Load dynamic links from services.json
     async function loadDynamicLinks() {
       try {
-        const res = await fetch('services.json?ts=' + Date.now(), { cache: 'no-store' });
+        const res = await fetch('setup-data.php?action=get_services&ts=' + Date.now(), { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}: no manifest`);
         const data = await res.json();
         const incoming = Array.isArray(data) ? data : (Array.isArray(data.links) ? data.links : []);
@@ -315,7 +315,7 @@
         // Apply category assignments from setup
         await applyCategoryAssignments();
       } catch (err) {
-        console.log('Could not load services.json:', err.message);
+        console.log('Could not load services data:', err.message);
         DYNAMIC_LINKS = [];
       }
     }
