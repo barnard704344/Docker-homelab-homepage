@@ -271,6 +271,49 @@ try {
                 }
                 break;
                 
+            case 'delete_service':
+                $serviceName = $input['service_name'] ?? '';
+                if (empty($serviceName)) {
+                    throw new Exception('Service name is required');
+                }
+                
+                $deleted = false;
+                
+                // Remove from main services.json
+                $servicesFile = '/var/www/site/services.json';
+                if (file_exists($servicesFile)) {
+                    $services = json_decode(file_get_contents($servicesFile), true) ?: [];
+                    $originalCount = count($services);
+                    $services = array_filter($services, function($service) use ($serviceName) {
+                        return $service['title'] !== $serviceName;
+                    });
+                    if (count($services) < $originalCount) {
+                        file_put_contents($servicesFile, json_encode(array_values($services), JSON_PRETTY_PRINT));
+                        $deleted = true;
+                    }
+                }
+                
+                // Remove from data/services.json
+                $dataServicesFile = '/var/www/site/data/services.json';
+                if (file_exists($dataServicesFile)) {
+                    $services = json_decode(file_get_contents($dataServicesFile), true) ?: [];
+                    $originalCount = count($services);
+                    $services = array_filter($services, function($service) use ($serviceName) {
+                        return $service['title'] !== $serviceName;
+                    });
+                    if (count($services) < $originalCount) {
+                        file_put_contents($dataServicesFile, json_encode(array_values($services), JSON_PRETTY_PRINT));
+                        $deleted = true;
+                    }
+                }
+                
+                if ($deleted) {
+                    echo json_encode(['success' => true, 'message' => "Service '$serviceName' deleted"]);
+                } else {
+                    echo json_encode(['success' => false, 'error' => "Service '$serviceName' not found"]);
+                }
+                break;
+                
             default:
                 http_response_code(400);
                 echo json_encode(['error' => 'Invalid action']);

@@ -314,9 +314,6 @@
         
         // Apply category assignments from setup
         await applyCategoryAssignments();
-        
-        // Clean up any deleted services that have been rediscovered
-        cleanupRediscoveredServices();
       } catch (err) {
         console.log('Could not load services.json:', err.message);
         DYNAMIC_LINKS = [];
@@ -387,9 +384,6 @@
         
         if (!key || seen.has(key)) continue;
         seen.add(key);
-        
-        // Filter out deleted services
-        if (isServiceDeleted(link.title)) continue;
         
         // Mark as pinned if it's in the pinned list
         const isPinned = pinnedTitles.has(link.title);
@@ -741,97 +735,45 @@
     }
     
     // --- Delete service functions
-    function getDeletedServices() {
-      try {
-        return JSON.parse(localStorage.getItem('deletedServices') || '{}');
-      } catch {
-        return {};
-      }
-    }
-    
-    function setDeletedServices(deleted) {
-      localStorage.setItem('deletedServices', JSON.stringify(deleted));
-    }
-    
     function deleteService(title) {
-      const deleted = getDeletedServices();
-      
-      // Find the service to preserve its configuration
-      const staticService = LINKS.find(s => s.title === title);
-      const dynamicService = DYNAMIC_LINKS.find(s => s.title === title);
-      const service = staticService || dynamicService;
-      
-      if (service) {
-        // Store service configuration for later restoration
-        deleted[title] = {
-          title: service.title,
-          url: service.url,
-          group: service.group || service.category,
-          desc: service.desc,
-          tags: service.tags || [],
-          ports: service.ports || [],
-          deletedAt: Date.now()
-        };
-        setDeletedServices(deleted);
-      }
-    }
-    
-    function isServiceDeleted(title) {
-      const deleted = getDeletedServices();
-      return deleted.hasOwnProperty(title);
-    }
-    
-    function getDeletedServiceConfig(title) {
-      const deleted = getDeletedServices();
-      return deleted[title] || null;
+      // Call backend to permanently delete the service
+      deleteServiceFromBackend(title);
     }
 
-    // Clean up deleted services that have been rediscovered
-    function cleanupRediscoveredServices() {
-      const deleted = getDeletedServices();
-      const currentServices = new Set();
-      
-      // Collect all current service titles from both static and dynamic links
-      [...LINKS, ...DYNAMIC_LINKS].forEach(link => {
-        if (link.title) {
-          currentServices.add(link.title);
+    async function deleteServiceFromBackend(title) {
+      try {
+        // Send to backend to actually delete from services data
+        const response = await fetch('setup-data.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'delete_service',
+            service_name: title
+          })
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            console.log(`Service '${title}' permanently deleted from backend`);
+            
+            // Remove from current display immediately
+            DYNAMIC_LINKS = DYNAMIC_LINKS.filter(s => s.title !== title);
+            render();
+            return true;
+          } else {
+            console.error('Backend deletion failed:', result.error);
+          }
+        } else {
+          console.error('HTTP error during deletion:', response.status);
         }
-      });
-      
-      // Remove any deleted services that are now present in current scan
-      let updated = false;
-      for (const serviceName in deleted) {
-        if (currentServices.has(serviceName)) {
-          delete deleted[serviceName];
-          updated = true;
-          console.log(`Cleared deleted service '${serviceName}' - rediscovered in scan`);
-        }
-      }
-      
-      if (updated) {
-        setDeletedServices(deleted);
-      }
-    }
-
-    // Manual function to clear a specific deleted service (for debugging)
-    function clearDeletedService(serviceName) {
-      const deleted = getDeletedServices();
-      if (deleted.hasOwnProperty(serviceName)) {
-        delete deleted[serviceName];
-        setDeletedServices(deleted);
-        console.log(`Manually cleared deleted service: ${serviceName}`);
-        render(); // Re-render to show the service
-        return true;
+      } catch (error) {
+        console.error('Error deleting service from backend:', error);
       }
       return false;
     }
 
-    // Manual function to clear all deleted services (for debugging)
-    function clearAllDeletedServices() {
-      localStorage.removeItem('deletedServices');
-      console.log('Cleared all deleted services');
-      render();
-    }    // --- Main render function
+    // --- Main render function
     function render() {
       grid.innerHTML = '';
       let links = mergedLinks();
