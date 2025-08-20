@@ -51,6 +51,17 @@ for NET in ${SUBNETS}; do
   # DNS (53,5380), databases, ssh, etc.
   HOMELAB_PORTS="21,22,23,25,53,80,110,143,443,993,995,1433,2375,2376,3000,3001,3306,3334,4200,5000,5001,5380,5432,6379,7000,8000,8006,8007,8080,8081,8086,8090,8096,8443,8888,9000,9090,9100,9187,9443,9981,10000,11434,19999,32168,32400"
   
+  # Load additional custom ports from setup page
+  CUSTOM_PORTS_FILE="/var/www/site/data/custom-ports.json"
+  if [[ -f "$CUSTOM_PORTS_FILE" ]]; then
+    # Extract port numbers from JSON and add to HOMELAB_PORTS
+    CUSTOM_PORTS=$(cat "$CUSTOM_PORTS_FILE" | grep -o '"port":[0-9]*' | cut -d':' -f2 | tr '\n' ',' | sed 's/,$//')
+    if [[ -n "$CUSTOM_PORTS" ]]; then
+      HOMELAB_PORTS="${HOMELAB_PORTS},${CUSTOM_PORTS}"
+      echo "Added custom ports: ${CUSTOM_PORTS}" >> "${OUTFILE}"
+    fi
+  fi
+  
   if ! timeout 90 nmap -T4 -p "${HOMELAB_PORTS}" -Pn -R --host-timeout 15s --max-rtt-timeout 500ms "${NET}" >> "${OUTFILE}" 2>&1; then
     echo "[!] nmap failed or timed out for ${NET}" >> "${OUTFILE}"
   fi

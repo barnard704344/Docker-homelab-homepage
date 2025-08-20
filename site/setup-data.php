@@ -9,6 +9,7 @@ $categoriesFile = '/var/www/site/data/categories.json';
 $assignmentsFile = '/var/www/site/data/service-assignments.json';
 $servicesFile = '/var/www/site/data/services.json';
 $servicesCompatFile = '/var/www/site/services.json';
+$customPortsFile = '/var/www/site/data/custom-ports.json';
 
 // Ensure data directory exists with proper permissions
 if (!is_dir('/var/www/site/data')) {
@@ -127,6 +128,11 @@ try {
                 echo json_encode($services);
                 break;
                 
+            case 'get_custom_ports':
+                $customPorts = loadJsonFile($customPortsFile, []);
+                echo json_encode($customPorts);
+                break;
+                
             default:
                 http_response_code(400);
                 echo json_encode(['error' => 'Invalid action']);
@@ -205,6 +211,32 @@ try {
                 saveJsonFile($categoriesFile, $defaultCategories);
                 saveJsonFile($assignmentsFile, []);
                 echo json_encode(['success' => true, 'message' => 'Categories reset to defaults']);
+                break;
+                
+            case 'save_custom_ports':
+                if (!isset($input['ports']) || !is_array($input['ports'])) {
+                    throw new Exception('Invalid custom ports data');
+                }
+                
+                // Validate each port
+                foreach ($input['ports'] as $portInfo) {
+                    if (!isset($portInfo['port']) || !is_numeric($portInfo['port'])) {
+                        throw new Exception('Invalid port data structure');
+                    }
+                    $port = (int)$portInfo['port'];
+                    if ($port < 1 || $port > 65535) {
+                        throw new Exception("Invalid port number: $port");
+                    }
+                }
+                
+                $result = saveJsonFile('custom-ports.json', $input['ports']);
+                if (isset($result['error'])) {
+                    echo json_encode($result);
+                } else if (isset($result['success']) && $result['success']) {
+                    echo json_encode(['success' => true, 'message' => 'Custom ports saved']);
+                } else {
+                    echo json_encode(['error' => 'Unknown error saving custom ports']);
+                }
                 break;
                 
             default:

@@ -303,6 +303,28 @@
             </div>
         </div>
         
+        <!-- Additional Ports Management -->
+        <div class="section">
+            <h2>🔍 Additional Scan Ports</h2>
+            <p>Add custom ports to include in the automatic network scanning. These will be added to the default homelab ports during discovery scans.</p>
+            
+            <div class="inline-form">
+                <div class="form-group">
+                    <label for="new-port">Add Port</label>
+                    <input type="number" id="new-port" placeholder="e.g., 8123, 1880, 4357" min="1" max="65535">
+                </div>
+                <div class="form-group">
+                    <label for="port-description">Description (optional)</label>
+                    <input type="text" id="port-description" placeholder="e.g., Home Assistant, Node-RED">
+                </div>
+                <button class="btn primary" onclick="addCustomPort()">➕ Add Port</button>
+            </div>
+            
+            <div id="custom-ports-list" class="category-list">
+                <!-- Custom ports will be loaded here -->
+            </div>
+        </div>
+        
         <!-- Service Assignment -->
         <div class="section">
             <h2>🏷️ Assign Services to Categories</h2>
@@ -357,6 +379,7 @@
         let categories = {};
         let services = [];
         let serviceAssignments = {};
+        let customPorts = [];
         
         // Load initial data
         async function loadData() {
@@ -379,7 +402,14 @@
                     serviceAssignments = await assignmentsResponse.json();
                 }
                 
+                // Load custom ports
+                const portsResponse = await fetch('/setup-data.php?action=get_custom_ports');
+                if (portsResponse.ok) {
+                    customPorts = await portsResponse.json();
+                }
+                
                 renderCategories();
+                renderCustomPorts();
                 renderServices();
                 updateCategorySelects();
                 
@@ -404,6 +434,29 @@
                     </div>
                 `;
                 container.appendChild(div);
+            }
+        }
+        
+        // Render custom ports list
+        function renderCustomPorts() {
+            const container = document.getElementById('custom-ports-list');
+            container.innerHTML = '';
+            
+            customPorts.forEach((portInfo, index) => {
+                const div = document.createElement('div');
+                div.className = 'category-item';
+                div.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <strong>Port ${portInfo.port}</strong>
+                        ${portInfo.description ? `<span style="color: var(--muted);">- ${escapeHtml(portInfo.description)}</span>` : ''}
+                    </div>
+                    <button class="delete-btn" onclick="deleteCustomPort(${index})">🗑️ Remove</button>
+                `;
+                container.appendChild(div);
+            });
+            
+            if (customPorts.length === 0) {
+                container.innerHTML = '<p style="color: var(--muted); text-align: center; padding: 20px;">No custom ports added yet. Add ports above to extend the default scanning range.</p>';
             }
         }
         
@@ -550,6 +603,81 @@
             }
         }
         
+        // Add custom port
+        async function addCustomPort() {
+            const portInput = document.getElementById('new-port');
+            const descInput = document.getElementById('port-description');
+            const port = parseInt(portInput.value.trim());
+            const description = descInput.value.trim();
+            
+            if (!port || port < 1 || port > 65535) {
+                showStatus('Please enter a valid port number (1-65535)', 'error');
+                return;
+            }
+            
+            // Check if port already exists
+            if (customPorts.some(p => p.port === port)) {
+                showStatus('Port already exists in custom ports list', 'error');
+                return;
+            }
+            
+            const portInfo = { port, description };
+            customPorts.push(portInfo);
+            
+            // Save immediately
+            try {
+                const response = await fetch('/setup-data.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'save_custom_ports',
+                        ports: customPorts
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to save custom port');
+                }
+                
+                portInput.value = '';
+                descInput.value = '';
+                renderCustomPorts();
+                showStatus(`Port ${port} added successfully`, 'success');
+            } catch (error) {
+                customPorts.pop(); // Remove the port we just added
+                showStatus('Failed to save custom port: ' + error.message, 'error');
+            }
+        }
+        
+        // Delete custom port
+        async function deleteCustomPort(index) {
+            if (confirm('Are you sure you want to remove this port from the scan list?')) {
+                const removedPort = customPorts[index];
+                customPorts.splice(index, 1);
+                
+                try {
+                    const response = await fetch('/setup-data.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'save_custom_ports',
+                            ports: customPorts
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to save changes');
+                    }
+                    
+                    renderCustomPorts();
+                    showStatus(`Port ${removedPort.port} removed successfully`, 'success');
+                } catch (error) {
+                    customPorts.splice(index, 0, removedPort); // Restore the port
+                    showStatus('Failed to remove port: ' + error.message, 'error');
+                }
+            }
+        }
+        
         // Update service assignment
         function updateServiceAssignment(serviceTitle, categoryKey) {
             serviceAssignments[serviceTitle] = categoryKey;
@@ -644,6 +772,21 @@
                 if (!assignmentsResponse.ok) {
                     const error = await assignmentsResponse.json();
                     throw new Error('Assignments save failed: ' + (error.error || 'Unknown error'));
+                }
+                
+                // Save custom ports
+                const portsResponse = await fetch('/setup-data.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'save_custom_ports',
+                        ports: customPorts
+                    })
+                });
+                
+                if (!portsResponse.ok) {
+                    const error = await portsResponse.json();
+                    throw new Error('Custom ports save failed: ' + (error.error || 'Unknown error'));
                 }
                 
                 // Update services with new categories and save
