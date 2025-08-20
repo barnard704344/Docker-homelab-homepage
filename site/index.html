@@ -741,9 +741,9 @@
     // --- Delete service functions
     function getDeletedServices() {
       try {
-        return JSON.parse(localStorage.getItem('deletedServices') || '[]');
+        return JSON.parse(localStorage.getItem('deletedServices') || '{}');
       } catch {
-        return [];
+        return {};
       }
     }
     
@@ -753,14 +753,35 @@
     
     function deleteService(title) {
       const deleted = getDeletedServices();
-      if (!deleted.includes(title)) {
-        deleted.push(title);
+      
+      // Find the service to preserve its configuration
+      const staticService = LINKS.find(s => s.title === title);
+      const dynamicService = DYNAMIC_LINKS.find(s => s.title === title);
+      const service = staticService || dynamicService;
+      
+      if (service) {
+        // Store service configuration for later restoration
+        deleted[title] = {
+          title: service.title,
+          url: service.url,
+          group: service.group || service.category,
+          desc: service.desc,
+          tags: service.tags || [],
+          ports: service.ports || [],
+          deletedAt: Date.now()
+        };
         setDeletedServices(deleted);
       }
     }
     
     function isServiceDeleted(title) {
-      return getDeletedServices().includes(title);
+      const deleted = getDeletedServices();
+      return deleted.hasOwnProperty(title);
+    }
+    
+    function getDeletedServiceConfig(title) {
+      const deleted = getDeletedServices();
+      return deleted[title] || null;
     }
 
     // --- Main render function
