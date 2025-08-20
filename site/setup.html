@@ -391,7 +391,7 @@
                 }
                 
                 // Load services
-                const servicesResponse = await fetch('/services.json');
+                const servicesResponse = await fetch('/setup-data.php?action=get_services');
                 if (servicesResponse.ok) {
                     services = await servicesResponse.json();
                 }
