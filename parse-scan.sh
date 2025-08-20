@@ -4,7 +4,52 @@ set -e
 # Parse nmap scan results and generate services.json for the homepage
 SCAN_FILE="/var/www/site/data/scan/last-scan.txt"
 SERVICES_FILE="/var/www/site/data/services.json"
-# Also create services.json in the web root for backward compatibility
+SERVICES_FILE_COMPAT="/var/www/site/services.json"
+
+# Load custom category assignments and names
+declare -A category_assignments
+declare -A category_names
+declare -A custom_ports
+if [[ -f "/var/www/site/data/service-assignments.json" ]]; then
+    echo "[discovery] Loading existing category assignments..."
+    if command -v jq >/dev/null 2>&1; then
+        while IFS="=" read -r key value; do
+            category_assignments["$key"]="$value"
+        done < <(jq -r 'to_entries | .[] | "\(.key)=\(.value)"' /var/www/site/data/service-assignments.json 2>/dev/null || true)
+    fi
+fi
+
+if [[ -f "/var/www/site/data/categories.json" ]]; then
+    echo "[discovery] Loading category names..."
+    if command -v jq >/dev/null 2>&1; then
+        while IFS="=" read -r key value; do
+            category_names["$key"]="$value"
+        done < <(jq -r 'to_entries | .[] | "\(.key)=\(.value)"' /var/www/site/data/categories.json 2>/dev/null || true)
+    fi
+fi
+
+# Load custom ports to treat them as HTTP
+if [[ -f "/var/www/site/data/custom-ports.json" ]]; then
+    echo "[discovery] Loading custom ports for HTTP treatment..."
+    if command -v jq >/dev/null 2>&1; then
+        while IFS= read -r port; do
+            custom_ports["$port"]="1"
+        done < <(jq -r '.[].port' /var/www/site/data/custom-ports.json 2>/dev/null || true)
+    fi
+fiata/services.                80|81|8000|8008|8080|8081|8090|8096|8888|9000)
+                    # Standard HTTP ports
+                    if [[ -z "$primary_url" ]]; then
+                        primary_url="http://$ip:$port"
+                    fi
+                    available_ports+=("$port:http://$ip:$port")
+                    ;;
+                443|8443|9443)
+                    # Standard HTTPS ports
+                    if [[ -z "$primary_url" ]]; then
+                        primary_url="https://$ip:$port"
+                    fi
+                    available_ports+=("$port:https://$ip:$port")
+                    ;; create services.json in the web root for backward compatibility
 SERVICES_FILE_COMPAT="/var/www/site/services.json"
 
 echo "[discovery] Parsing scan results from ${SCAN_FILE}..."
@@ -46,10 +91,10 @@ else
     echo "[discovery] Write permissions: OK"
 fi
 
-# Simple approach - extract named hosts with their open ports
+# Simple approach - extract hosts with their open ports
 services=()
 
-echo "[discovery] Extracting named hosts and their ports..."
+echo "[discovery] Extracting hosts and their ports..."
 current_host=""
 current_ip=""
 current_ports=()
@@ -139,378 +184,199 @@ if [[ -n "$current_host" ]] && [[ ${#current_ports[@]} -gt 0 ]]; then
     echo "[discovery] Saved final: $current_host ($current_ip) - Ports: $ports_str"
 fi
 
-echo "[discovery] Found ${#services[@]} named hosts"
+echo "[discovery] Found ${#services[@]} services total"
 
-if [[ ${#services[@]} -eq 0 ]]; then
-    echo "[discovery] WARNING: No named hosts found, creating empty services file"
-    echo "[]" > "${SERVICES_FILE}" || {
-        echo "[discovery] ERROR: Cannot write empty array to ${SERVICES_FILE}"
-        exit 1
-    }
-    exit 0
+# Convert to JSON format
+json_services=()
+
+# Load existing category assignments if they exist
+declare -A category_assignments
+declare -A category_names
+if [[ -f "/var/www/site/data/service-assignments.json" ]]; then
+    echo "[discovery] Loading existing category assignments..."
+    if command -v jq >/dev/null 2>&1; then
+        while IFS="=" read -r key value; do
+            category_assignments["$key"]="$value"
+        done < <(jq -r 'to_entries | .[] | "\(.key)=\(.value)"' /var/www/site/data/service-assignments.json 2>/dev/null || true)
+    fi
 fi
 
-# Create JSON file
-echo "[discovery] Creating JSON file..."
-{
-    echo "["
-    for i in "${!services[@]}"; do
-        service_entry="${services[$i]}"
-        IFS='|' read -r name ip ports <<< "$service_entry"
-        
-        # Add comma if not first entry
-        if [[ $i -gt 0 ]]; then
-            echo ","
-        fi
-        
-        # Determine primary URL and build description with port data
-        primary_url="http://$ip"
-        description="Auto-discovered: $ip"
-        available_ports=[]
-        
-        if [[ -n "$ports" ]]; then
-            # Parse ports and build available ports array
-            IFS=',' read -ra port_array <<< "$ports"
-            port_descriptions=()
+if [[ -f "/var/www/site/data/categories.json" ]]; then
+    echo "[discovery] Loading category names..."
+    if command -v jq >/dev/null 2>&1; then
+        while IFS="=" read -r key value; do
+            category_names["$key"]="$value"
+        done < <(jq -r 'to_entries | .[] | "\(.key)=\(.value)"' /var/www/site/data/categories.json 2>/dev/null || true)
+    fi
+fi
+
+for service_line in "${services[@]}"; do
+    IFS='|' read -r host ip ports <<< "$service_line"
+    
+    # Split ports
+    IFS=',' read -ra port_array <<< "$ports"
+    port_descriptions=()
+    available_ports=()
+    primary_url=""
+    
+    for port_info in "${port_array[@]}"; do
+        if [[ -n "$port_info" ]]; then
+            IFS='/' read -r port service <<< "$port_info"
+            port_descriptions+=("$port ($service)")
             
-            for port_info in "${port_array[@]}"; do
-                if [[ -n "$port_info" ]]; then
-                    IFS='/' read -r port service <<< "$port_info"
-                    port_descriptions+=("$port ($service)")
-                    
-                    # Add to available ports with URL
-                    case $port in
-                        80) 
-                            primary_url="http://$ip"
-                            available_ports+=("80:http://$ip")
-                            ;;
-                        443) 
-                            primary_url="https://$ip"
-                            available_ports+=("443:https://$ip")
-                            ;;
-                        22)
-                            available_ports+=("22:ssh://$ip:22")
-                            ;;
-                        21)
-                            available_ports+=("21:ftp://$ip:21")
-                            ;;
-                        23)
-                            available_ports+=("23:telnet://$ip:23")
-                            ;;
-                        25)
-                            available_ports+=("25:smtp://$ip:25")
-                            ;;
-                        53)
-                            available_ports+=("53:dns://$ip:53")
-                            ;;
-                        110)
-                            available_ports+=("110:pop3://$ip:110")
-                            ;;
-                        143)
-                            available_ports+=("143:imap://$ip:143")
-                            ;;
-                        993)
-                            available_ports+=("993:imaps://$ip:993")
-                            ;;
-                        995)
-                            available_ports+=("995:pop3s://$ip:995")
-                            ;;
-                        2375|2376)
-                            # Docker API
-                            available_ports+=("$port:http://$ip:$port")
-                            if [[ "$primary_url" == "http://$ip" ]]; then
+            # Determine URL based on port and service
+            # First check if this is a custom port from setup page - treat all as HTTP
+            if [[ -n "${custom_ports[$port]}" ]]; then
+                if [[ -z "$primary_url" ]]; then
+                    primary_url="http://$ip:$port"
+                fi
+                available_ports+=("$port:http://$ip:$port")
+            else
+                case $port in
+                80) 
+                    primary_url="http://$ip"
+                    available_ports+=("$port:http://$ip")
+                    ;;
+                443) 
+                    primary_url="https://$ip"
+                    available_ports+=("$port:https://$ip")
+                    ;;
+                8080|8000|3000|5000|9000) 
+                    if [[ -z "$primary_url" ]]; then
+                        primary_url="http://$ip:$port"
+                    fi
+                    available_ports+=("$port:http://$ip:$port")
+                    ;;
+                8443|9443) 
+                    if [[ -z "$primary_url" ]]; then
+                        primary_url="https://$ip:$port"
+                    fi
+                    available_ports+=("$port:https://$ip:$port")
+                    ;;
+                22)
+                    available_ports+=("$port:ssh://$ip:$port")
+                    ;;
+                53|5380)
+                    # DNS servers - 53 is standard DNS, 5380 is Technitium DNS
+                    if [[ $port == "5380" ]]; then
+                        if [[ -z "$primary_url" ]]; then
+                            primary_url="http://$ip:$port"
+                        fi
+                        available_ports+=("$port:http://$ip:$port")
+                    else
+                        available_ports+=("$port:dns://$ip:$port")
+                    fi
+                    ;;
+                *)
+                    # Default based on service name
+                    case $service in
+                        http*|*http*|web*)
+                            if [[ -z "$primary_url" ]]; then
                                 primary_url="http://$ip:$port"
                             fi
-                            ;;
-                        4200)
-                            # Angular dev server
                             available_ports+=("$port:http://$ip:$port")
-                            if [[ "$primary_url" == "http://$ip" ]]; then
-                                primary_url="http://$ip:$port"
-                            fi
                             ;;
-                        7000)
-                            # Various dev services
-                            available_ports+=("$port:http://$ip:$port")
-                            if [[ "$primary_url" == "http://$ip" ]]; then
-                                primary_url="http://$ip:$port"
-                            fi
-                            ;;
-                        8090)
-                            # Jenkins, SonarQube
-                            available_ports+=("$port:http://$ip:$port")
-                            if [[ "$primary_url" == "http://$ip" ]]; then
-                                primary_url="http://$ip:$port"
-                            fi
-                            ;;
-                        10000)
-                            # Webmin
-                            available_ports+=("$port:https://$ip:$port")
-                            if [[ "$primary_url" == "http://$ip" ]]; then
+                        https*|*https*)
+                            if [[ -z "$primary_url" ]]; then
                                 primary_url="https://$ip:$port"
                             fi
-                            ;;
-                        11434)
-                            # Ollama API
-                            available_ports+=("$port:http://$ip:$port")
-                            if [[ "$primary_url" == "http://$ip" ]]; then
-                                primary_url="http://$ip:$port"
-                            fi
-                            ;;
-                        32168)
-                            # Code-server default port
                             available_ports+=("$port:https://$ip:$port")
-                            if [[ "$primary_url" == "http://$ip" ]]; then
-                                primary_url="https://$ip:$port"
-                            fi
-                            ;;
-                        3334)
-                            # Obico 3D printer monitoring
-                            available_ports+=("$port:http://$ip:$port")
-                            if [[ "$primary_url" == "http://$ip" ]]; then
-                                primary_url="http://$ip:$port"
-                            fi
-                            ;;
-                        8096)
-                            # Jellyfin media server
-                            available_ports+=("$port:http://$ip:$port")
-                            if [[ "$primary_url" == "http://$ip" ]]; then
-                                primary_url="http://$ip:$port"
-                            fi
-                            ;;
-                        9981)
-                            # TVHeadend
-                            available_ports+=("$port:http://$ip:$port")
-                            if [[ "$primary_url" == "http://$ip" ]]; then
-                                primary_url="http://$ip:$port"
-                            fi
-                            ;;
-                        32400)
-                            # Plex Media Server
-                            available_ports+=("$port:http://$ip:$port")
-                            if [[ "$primary_url" == "http://$ip" ]]; then
-                                primary_url="http://$ip:$port"
-                            fi
-                            ;;
-                        8086)
-                            # InfluxDB
-                            available_ports+=("$port:http://$ip:$port")
-                            if [[ "$primary_url" == "http://$ip" ]]; then
-                                primary_url="http://$ip:$port"
-                            fi
-                            ;;
-                        9100)
-                            # Prometheus Node Exporter
-                            available_ports+=("$port:http://$ip:$port")
-                            if [[ "$primary_url" == "http://$ip" ]]; then
-                                primary_url="http://$ip:$port"
-                            fi
-                            ;;
-                        9187)
-                            # Prometheus MySQL Exporter
-                            available_ports+=("$port:http://$ip:$port")
-                            if [[ "$primary_url" == "http://$ip" ]]; then
-                                primary_url="http://$ip:$port"
-                            fi
-                            ;;
-                        5000)
-                            # Synology DSM (HTTP) or other NAS
-                            available_ports+=("$port:http://$ip:$port")
-                            if [[ "$primary_url" == "http://$ip" ]]; then
-                                primary_url="http://$ip:$port"
-                            fi
-                            ;;
-                        5001)
-                            # Synology DSM (HTTPS) or other NAS
-                            available_ports+=("$port:https://$ip:$port")
-                            if [[ "$primary_url" == "http://$ip" ]]; then
-                                primary_url="https://$ip:$port"
-                            fi
-                            ;;
-                        8007)
-                            # Proxmox Backup Server
-                            available_ports+=("$port:https://$ip:$port")
-                            if [[ "$primary_url" == "http://$ip" ]]; then
-                                primary_url="https://$ip:$port"
-                            fi
                             ;;
                         *)
-                            # For all other ports, try to determine protocol from service
-                            case $service in
-                                http*|*http*|web*)
-                                    available_ports+=("$port:http://$ip:$port")
-                                    if [[ "$primary_url" == "http://$ip" ]]; then
-                                        primary_url="http://$ip:$port"
-                                    fi
-                                    ;;
-                                https*|*https*)
-                                    available_ports+=("$port:https://$ip:$port")
-                                    if [[ "$primary_url" == "http://$ip" ]]; then
-                                        primary_url="https://$ip:$port"
-                                    fi
-                                    ;;
-                                ssh)
-                                    available_ports+=("$port:ssh://$ip:$port")
-                                    ;;
-                                ftp)
-                                    available_ports+=("$port:ftp://$ip:$port")
-                                    ;;
-                                telnet)
-                                    available_ports+=("$port:telnet://$ip:$port")
-                                    ;;
-                                smtp)
-                                    available_ports+=("$port:mailto://$ip:$port")
-                                    ;;
-                                *)
-                                    # Default to HTTP for unknown services
-                                    available_ports+=("$port:http://$ip:$port")
-                                    ;;
-                            esac
+                            # Default to http for web-like ports, raw for system ports
+                            if [[ $port -gt 1000 ]] || [[ $port == 81 ]] || [[ $port == 82 ]] || [[ $port == 83 ]] || [[ $port -ge 8000 && $port -le 8999 ]] || [[ $port -ge 9000 && $port -le 9999 ]]; then
+                                if [[ -z "$primary_url" ]]; then
+                                    primary_url="http://$ip:$port"
+                                fi
+                                available_ports+=("$port:http://$ip:$port")
+                            else
+                                available_ports+=("$port:tcp://$ip:$port")
+                            fi
                             ;;
                     esac
-                                    available_ports+=("$port:smtp://$ip:$port")
-                                    ;;
-                                *)
-                                    # Default to http for unknown services on common web ports
-                                    if [[ $port -gt 1000 ]] && [[ $port -lt 10000 ]]; then
-                                        available_ports+=("$port:http://$ip:$port")
-                                        if [[ "$primary_url" == "http://$ip" ]]; then
-                                            primary_url="http://$ip:$port"
-                                        fi
-                                    else
-                                        # For system ports, just show the raw port
-                                        available_ports+=("$port:tcp://$ip:$port")
-                                    fi
-                                    ;;
-                            esac
-                            ;;
-                    esac
-                fi
-            done
-            
-            # Build description with port info
-            port_list=$(IFS=', '; echo "${port_descriptions[*]}")
-            description="Auto-discovered: $ip - Ports: $port_list"
-        fi
-        
-        # Simple JSON entry - escape quotes in names
-        escaped_name=$(echo "$name" | sed 's/"/\\"/g')
-        escaped_desc=$(echo "$description" | sed 's/"/\\"/g')
-        
-        # For IP-only hosts, use a more descriptive title
-        if [[ "$name" =~ ^[0-9.]+$ ]]; then
-            # This is an IP-only host, make the title more descriptive
-            if [[ -n "$ports" ]]; then
-                # Use the first service type for a better title
-                IFS=',' read -ra port_array <<< "$ports"
-                first_port_info="${port_array[0]}"
-                IFS='/' read -r first_port first_service <<< "$first_port_info"
-                
-                case $first_service in
-                    http*) service_type="Web Server" ;;
-                    https*) service_type="Secure Web Server" ;;
-                    ssh) service_type="SSH Server" ;;
-                    docker*) service_type="Docker Service" ;;
-                    *) 
-                        # Check port numbers for better service identification
-                        case $first_port in
-                            8006) service_type="Proxmox VE" ;;
-                            8007) service_type="Proxmox Backup" ;;
-                            8080|8081|9000) service_type="Web Interface" ;;
-                            8443|32168) service_type="Code Server" ;;
-                            11434) service_type="Ollama AI" ;;
-                            19999) service_type="Netdata Monitor" ;;
-                            3001) service_type="Grafana" ;;
-                            3334) service_type="Obico 3D Monitor" ;;
-                            8096) service_type="Jellyfin Media" ;;
-                            9981) service_type="TVHeadend" ;;
-                            32400) service_type="Plex Media" ;;
-                            8086) service_type="InfluxDB" ;;
-                            9090) service_type="Prometheus" ;;
-                            9100) service_type="Node Exporter" ;;
-                            9187) service_type="MySQL Exporter" ;;
-                            5000) service_type="NAS Storage" ;;
-                            5001) service_type="NAS Storage (SSL)" ;;
-                            2375|2376) service_type="Docker API" ;;
-                            4200) service_type="Angular Dev" ;;
-                            *) service_type="Network Device" ;;
-                        esac
-                        ;;
-                esac
-                
-                escaped_name="$service_type ($name)"
-            else
-                escaped_name="Device ($name)"
+                    ;;
+            esac
             fi
-        else
-            # This is a named host (either original or resolved via DNS)
-            escaped_name=$(echo "$name" | sed 's/"/\\"/g')
         fi
-        
-        printf '  {\n    "title": "%s",\n    "url": "%s",\n    "group": "Discovered",\n    "desc": "%s",\n    "tags": ["discovered", "nmap"],\n    "ports": [' "$escaped_name" "$primary_url" "$escaped_desc"
-        
-        # Add available ports as JSON array
-        if [[ -n "$ports" ]]; then
-            IFS=',' read -ra port_array <<< "$ports"
-            for i in "${!port_array[@]}"; do
-                port_info="${port_array[$i]}"
-                if [[ -n "$port_info" ]]; then
-                    IFS='/' read -r port service <<< "$port_info"
-                    
-                    # Determine URL for this port
-                    case $port_info in
-                        80) port_url="http://$ip" ;;
-                        443) port_url="https://$ip" ;;
-                        2375|2376) port_url="http://$ip:$port" ;;  # Docker API
-                        8443|10000|32168) port_url="https://$ip:$port" ;; # Code-server, Webmin
-                        8096|9981|32400) port_url="http://$ip:$port" ;;   # Jellyfin, TVHeadend, Plex
-                        8086|9090|9100|9187|19999) port_url="http://$ip:$port" ;; # Monitoring stack
-                        5000) port_url="http://$ip:$port" ;;       # NAS HTTP
-                        5001|8007) port_url="https://$ip:$port" ;; # NAS HTTPS, Proxmox Backup
-                        11434) port_url="http://$ip:$port" ;;      # Ollama
-                        *) port_url="http://$ip:$port" ;;
-                    esac
-                    
-                    if [[ $i -gt 0 ]]; then
-                        printf ","
-                    fi
-                    printf '{"port":"%s","service":"%s","url":"%s"}' "$port" "$service" "$port_url"
-                fi
-            done
-        fi
-        
-        printf ']\n  }'
     done
-    echo
-    echo "]"
-} > "${SERVICES_FILE}" || {
-    echo "[discovery] ERROR: Failed to write JSON to ${SERVICES_FILE}"
-    exit 1
+    
+    # Set default URL if none found
+    if [[ -z "$primary_url" ]]; then
+        primary_url="http://$ip"
+    fi
+    
+    # Determine service type and description
+    service_type="Unknown"
+    description="Network service"
+    
+    # Check if this service has a custom category assignment
+    if [[ -n "${category_assignments[$host]}" ]]; then
+        assigned_category="${category_assignments[$host]}"
+        if [[ -n "${category_names[$assigned_category]}" ]]; then
+            service_type="${category_names[$assigned_category]}"
+            description="Custom assigned service"
+            echo "[discovery] Using custom category for $host: $service_type"
+        fi
+    else
+        # Default service type detection based on ports and hostname
+        if [[ "$host" =~ plex|media ]]; then
+            service_type="Media"
+            description="Plex Media Server"
+        elif [[ "$host" =~ jellyfin ]]; then
+            service_type="Media" 
+            description="Jellyfin Media Server"
+        elif [[ "$host" =~ domoticz ]]; then
+            service_type="Home Automation"
+            description="Domoticz Home Automation"
+        elif echo "$ports" | grep -q "53\|5380"; then
+            service_type="Network"
+            description="DNS Server"
+        elif echo "$ports" | grep -q "443\|8443\|9443"; then
+            service_type="Web Service"
+            description="HTTPS Web Service"
+        elif echo "$ports" | grep -q "80\|8080\|3000\|5000\|8000\|9000"; then
+            service_type="Web Service"
+            description="HTTP Web Service"
+        elif echo "$ports" | grep -q "22"; then
+            service_type="Server"
+            description="SSH Server"
+        fi
+    fi
+    
+    # Create port objects for frontend
+    ports_json=()
+    for port_url in "${available_ports[@]}"; do
+        IFS=':' read -r port_num url <<< "$port_url"
+        ports_json+=("{\"port\": \"$port_num\", \"service\": \"$(echo "$service_line" | cut -d'/' -f2)\", \"url\": \"$url\"}")
+    done
+    ports_array="[$(IFS=','; echo "${ports_json[*]}")]"
+    
+    # Create the service JSON entry
+    json_entry="{
+        \"title\": \"$host\",
+        \"url\": \"$primary_url\",
+        \"group\": \"$service_type\",
+        \"desc\": \"$description - $(IFS=' '; echo "${port_descriptions[*]}")\",
+        \"tags\": [\"discovered\", \"$service_type\"],
+        \"ports\": $ports_array
+    }"
+    
+    json_services+=("$json_entry")
+done
+
+# Write JSON output
+json_output="[$(IFS=','; echo "${json_services[*]}")]"
+
+echo "$json_output" | jq '.' > "${SERVICES_FILE}" 2>/dev/null || {
+    echo "[discovery] WARNING: jq failed, writing raw JSON"
+    echo "$json_output" > "${SERVICES_FILE}"
 }
 
-# Create compatibility copy in web root (don't fail if this doesn't work)
-cp "${SERVICES_FILE}" "${SERVICES_FILE_COMPAT}" 2>/dev/null || true
+# Also write compatibility file
+echo "$json_output" | jq '.' > "${SERVICES_FILE_COMPAT}" 2>/dev/null || {
+    echo "$json_output" > "${SERVICES_FILE_COMPAT}"
+}
 
-# Validate JSON
-if command -v jq >/dev/null 2>&1; then
-    if jq . "${SERVICES_FILE}" >/dev/null 2>&1; then
-        echo "[discovery] JSON validation: OK"
-    else
-        echo "[discovery] ERROR: Invalid JSON generated"
-        cat "${SERVICES_FILE}"
-        exit 1
-    fi
-else
-    echo "[discovery] jq not available, skipping JSON validation"
-fi
-
-# Set permissions for both files
-chown nginx:nginx "${SERVICES_FILE}" 2>/dev/null || true
-chmod 644 "${SERVICES_FILE}" 2>/dev/null || true
-chown nginx:nginx "${SERVICES_FILE_COMPAT}" 2>/dev/null || true
-chmod 644 "${SERVICES_FILE_COMPAT}" 2>/dev/null || true
-
-echo "[discovery] SUCCESS: Generated ${#services[@]} services"
-echo "[discovery] File: ${SERVICES_FILE} ($(wc -c < "${SERVICES_FILE}") bytes)"
-echo "[discovery] Content preview:"
-head -10 "${SERVICES_FILE}" | sed 's/^/[discovery]   /'
+echo "[discovery] ✓ Generated services file with ${#json_services[@]} services"
+echo "[discovery] ✓ Output written to: ${SERVICES_FILE}"
+echo "[discovery] ✓ Compatibility file: ${SERVICES_FILE_COMPAT}"
