@@ -204,6 +204,17 @@ for service_line in "${services[@]}"; do
                 22)
                     available_ports+=("$port:ssh://$ip:$port")
                     ;;
+                53|5380)
+                    # DNS servers - 53 is standard DNS, 5380 is Technitium DNS
+                    if [[ $port == "5380" ]]; then
+                        if [[ -z "$primary_url" ]]; then
+                            primary_url="http://$ip:$port"
+                        fi
+                        available_ports+=("$port:http://$ip:$port")
+                    else
+                        available_ports+=("$port:dns://$ip:$port")
+                    fi
+                    ;;
                 *)
                     # Default based on service name
                     case $service in
@@ -264,6 +275,9 @@ for service_line in "${services[@]}"; do
         elif [[ "$host" =~ domoticz ]]; then
             service_type="Home Automation"
             description="Domoticz Home Automation"
+        elif echo "$ports" | grep -q "53\|5380"; then
+            service_type="Network"
+            description="DNS Server"
         elif echo "$ports" | grep -q "443\|8443\|9443"; then
             service_type="Web Service"
             description="HTTPS Web Service"
