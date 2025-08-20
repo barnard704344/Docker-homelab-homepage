@@ -95,10 +95,21 @@ else
 fi
 
 # Create empty files with proper permissions if they don't exist
-touch /var/www/site/data/categories.json 2>/dev/null || true
-touch /var/www/site/data/service-assignments.json 2>/dev/null || true
-touch /var/www/site/data/services.json 2>/dev/null || true
+if [[ ! -f /var/www/site/data/categories.json ]]; then
+    echo '{}' > /var/www/site/data/categories.json 2>/dev/null || true
+fi
+if [[ ! -f /var/www/site/data/service-assignments.json ]]; then
+    echo '{}' > /var/www/site/data/service-assignments.json 2>/dev/null || true
+fi
+if [[ ! -f /var/www/site/data/services.json ]]; then
+    echo '[]' > /var/www/site/data/services.json 2>/dev/null || true
+fi
 chmod 666 /var/www/site/data/*.json 2>/dev/null || true
+
+# Ensure the web root services.json also has valid JSON
+if [[ ! -f /var/www/site/services.json ]]; then
+    echo '[]' > /var/www/site/services.json 2>/dev/null || true
+fi
 
 # Final aggressive permission set - MUST be 777 for category management
 echo "[start] FINAL: Ensuring data directory is 777..."
