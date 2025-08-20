@@ -36,6 +36,11 @@ echo "Creating essential data files..."
 touch ./data/categories.json ./data/service-assignments.json ./data/services.json 2>/dev/null || true
 chmod 666 ./data/*.json 2>/dev/null || true
 
+# Set host directory to 777 as well (this is critical for volume mounts)
+echo "Setting host data directory permissions to 777..."
+chmod 777 ./data
+chmod -R 777 ./data
+
 # Double-check the data directory is accessible
 if [[ -d ./data ]]; then
     echo "Data directory exists and has permissions: $(ls -ld ./data)"
@@ -86,7 +91,15 @@ docker exec homepage sh -c 'chmod 666 /var/www/site/data/*.json' 2>/dev/null || 
 # Final permission check and force if needed
 docker exec -u root homepage sh -c 'chmod -R 777 /var/www/site/data' 2>/dev/null || true
 
+# CRITICAL: Also fix host directory permissions (volume mount issue)
+echo "Fixing host directory permissions (critical for volume mounts)..."
+chmod 777 ./data
+chmod -R 777 ./data
+
 echo "Verifying permissions setup..."
+echo "Host directory permissions:"
+ls -la ./data
+echo "Container directory permissions:"
 docker exec homepage ls -la /var/www/site/data 2>/dev/null || echo "Could not list data directory"
 
 # Test write permissions
