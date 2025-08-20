@@ -25,7 +25,11 @@ mkdir -p /var/log/nginx
 
 # Set proper ownership for web directories
 chown -R nginx:nginx /var/www/site
-chmod -R 755 /var/www/site
+# NOTE: Don't set blanket 755 permissions here - it overwrites our 777 data directory
+chmod 755 /var/www/site
+# Set 755 only for the site files, not the data directory
+find /var/www/site -type f -not -path "*/data/*" -exec chmod 644 {} \;
+find /var/www/site -type d -not -path "*/data*" -exec chmod 755 {} \;
 
 # Force create and setup persistent data directory with maximum permissions
 echo "[start] Setting up persistent data directory..."
@@ -54,8 +58,17 @@ touch /var/www/site/data/service-assignments.json 2>/dev/null || true
 touch /var/www/site/data/services.json 2>/dev/null || true
 chmod 666 /var/www/site/data/*.json 2>/dev/null || true
 
-# Final aggressive permission set
+# Final aggressive permission set - MUST be 777 for category management
+echo "[start] FINAL: Ensuring data directory is 777..."
+chmod 777 /var/www/site/data
 chmod -R 777 /var/www/site/data
+# Verify it actually worked
+ACTUAL_PERMS=$(stat -c "%a" /var/www/site/data 2>/dev/null || echo "000")
+if [ "$ACTUAL_PERMS" = "777" ]; then
+    echo "[start] ✅ Data directory permissions confirmed: 777"
+else
+    echo "[start] ❌ WARNING: Data directory permissions are: $ACTUAL_PERMS (should be 777)"
+fi
 
 # Test write capability extensively
 echo "[start] Testing write capability..."
