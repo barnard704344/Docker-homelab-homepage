@@ -500,7 +500,6 @@
           <a href="${displayUrl}" class="card-title" target="_blank" rel="noopener">${escapeHtml(link.title)}</a>
           <div class="status-dot" data-url="${displayUrl}" data-path="${link.statusPath}"></div>
         </div>
-        ${link.desc ? `<div class="card-desc">${escapeHtml(link.desc)}</div>` : ''}
         ${portsHtml}
         <div class="card-meta">
           ${link.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
