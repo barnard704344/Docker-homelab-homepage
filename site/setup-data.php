@@ -4,47 +4,19 @@ header('Cache-Control: no-cache, no-store, must-revalidate');
 header('Pragma: no-cache');
 header('Expires: 0');
 
-// Data files - try multiple locations for Docker volume mount compatibility
-$dataDir = '/var/www/site/data';
-$writableDir = '/var/www/site/data/writable';
-$tmpDir = '/tmp/homepage-data';
-
-// Determine the best writable location
-$actualDataDir = $dataDir;
-if (!is_writable($dataDir)) {
-    if (is_dir($writableDir) && is_writable($writableDir)) {
-        $actualDataDir = $writableDir;
-    } elseif (is_dir($tmpDir) && is_writable($tmpDir)) {
-        $actualDataDir = $tmpDir;
-    } else {
-        // Try to create writable directory
-        if (@mkdir($writableDir, 0777, true) && is_writable($writableDir)) {
-            $actualDataDir = $writableDir;
-        } elseif (@mkdir($tmpDir, 0777, true) && is_writable($tmpDir)) {
-            $actualDataDir = $tmpDir;
-        }
-    }
-}
-
-$categoriesFile = $actualDataDir . '/categories.json';
-$assignmentsFile = $actualDataDir . '/service-assignments.json';
-$servicesFile = $actualDataDir . '/services.json';
+// Data files - should work with proper host directory permissions
+$categoriesFile = '/var/www/site/data/categories.json';
+$assignmentsFile = '/var/www/site/data/service-assignments.json';
+$servicesFile = '/var/www/site/data/services.json';
 $servicesCompatFile = '/var/www/site/services.json';
 
 // Ensure data directory exists with proper permissions
-$dataDirectory = dirname($categoriesFile);
-if (!is_dir($dataDirectory)) {
-    mkdir($dataDirectory, 0777, true);
-    chmod($dataDirectory, 0777);
+if (!is_dir('/var/www/site/data')) {
+    mkdir('/var/www/site/data', 0777, true);
 }
 
-// Try to fix permissions if we can't write
-if (!is_writable($dataDirectory)) {
-    // Try to fix permissions
-    @chmod($dataDirectory, 0777);
-    @chown($dataDirectory, 'nginx');
-    @chgrp($dataDirectory, 'nginx');
-}
+// Data directory should already have 777 permissions from host setup
+// If not, there's a setup problem that needs to be fixed at the host level
 
 // Default categories
 $defaultCategories = [
