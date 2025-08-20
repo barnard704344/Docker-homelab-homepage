@@ -52,6 +52,7 @@ docker run -d \
   --network host \
   -e SUBNETS="192.168.1.0/24" \
   -e SCAN_INTERVAL=10 \
+  --user root \
   -v "$(pwd)/data:/var/www/site/data" \
   homepage
 
