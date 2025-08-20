@@ -160,8 +160,14 @@ try {
                     throw new Exception('Invalid assignments data');
                 }
                 
-                saveJsonFile($assignmentsFile, $input['assignments']);
-                echo json_encode(['success' => true, 'message' => 'Assignments saved']);
+                $result = saveJsonFile('service-assignments.json', $input['assignments']);
+                if (isset($result['error'])) {
+                    echo json_encode($result);
+                } else if (isset($result['success']) && $result['success']) {
+                    echo json_encode(['success' => true, 'message' => 'Assignments saved']);
+                } else {
+                    echo json_encode(['error' => 'Unknown error saving assignments']);
+                }
                 break;
                 
             case 'save_services':
