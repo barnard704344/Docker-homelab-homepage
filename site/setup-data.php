@@ -10,6 +10,7 @@ $assignmentsFile = '/var/www/site/data/service-assignments.json';
 $servicesFile = '/var/www/site/data/services.json';
 $servicesCompatFile = '/var/www/site/services.json';
 $customPortsFile = '/var/www/site/data/custom-ports.json';
+$deletedServicesFile = '/var/www/site/data/deleted-services.json';
 
 // Ensure data directory exists with proper permissions
 if (!is_dir('/var/www/site/data')) {
@@ -133,6 +134,11 @@ try {
                 echo json_encode($customPorts);
                 break;
                 
+            case 'get_deleted_services':
+                $deletedServices = loadJsonFile($deletedServicesFile, []);
+                echo json_encode($deletedServices);
+                break;
+                
             default:
                 http_response_code(400);
                 echo json_encode(['error' => 'Invalid action']);
@@ -236,6 +242,32 @@ try {
                     echo json_encode(['success' => true, 'message' => 'Custom ports saved']);
                 } else {
                     echo json_encode(['error' => 'Unknown error saving custom ports']);
+                }
+                break;
+                
+            case 'save_deleted_services':
+                if (!isset($input['deleted']) || !is_array($input['deleted'])) {
+                    throw new Exception('Invalid deleted services data');
+                }
+                
+                $result = saveJsonFile('deleted-services.json', $input['deleted']);
+                if (isset($result['error'])) {
+                    echo json_encode($result);
+                } else if (isset($result['success']) && $result['success']) {
+                    echo json_encode(['success' => true, 'message' => 'Deleted services saved']);
+                } else {
+                    echo json_encode(['error' => 'Unknown error saving deleted services']);
+                }
+                break;
+                
+            case 'clear_deleted_services':
+                $result = saveJsonFile('deleted-services.json', []);
+                if (isset($result['error'])) {
+                    echo json_encode($result);
+                } else if (isset($result['success']) && $result['success']) {
+                    echo json_encode(['success' => true, 'message' => 'Deleted services cleared']);
+                } else {
+                    echo json_encode(['error' => 'Unknown error clearing deleted services']);
                 }
                 break;
                 

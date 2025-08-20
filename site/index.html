@@ -186,6 +186,25 @@
       color: var(--accent);
     }
     
+    .delete-btn {
+      position: absolute;
+      top: 12px;
+      right: 40px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 4px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    
+    .delete-btn:hover {
+      background: rgba(255, 107, 53, 0.2);
+      color: var(--warning);
+    }
+    
     .ports-section {
       margin: 8px 0;
       font-size: 12px;
@@ -366,6 +385,9 @@
         if (!key || seen.has(key)) continue;
         seen.add(key);
         
+        // Filter out deleted services
+        if (isServiceDeleted(link.title)) continue;
+        
         // Mark as pinned if it's in the pinned list
         const isPinned = pinnedTitles.has(link.title);
         if (isPinned) {
@@ -483,6 +505,9 @@
         <div class="card-meta">
           ${link.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
         </div>
+        <button class="delete-btn" data-title="${escapeHtml(link.title)}" title="Delete service">
+          🗑️
+        </button>
         <button class="pin-btn ${isPinned ? 'pinned' : ''}" data-title="${escapeHtml(link.title)}">
           ${isPinned ? '📍' : '📌'}
         </button>
@@ -494,6 +519,16 @@
         e.preventDefault();
         togglePin(link.title);
         render();
+      });
+      
+      // Add delete button handler
+      const deleteBtn = card.querySelector('.delete-btn');
+      deleteBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (confirm(`Delete "${link.title}"? It will be rediscovered on next scan if still active.`)) {
+          deleteService(link.title);
+          render();
+        }
       });
       
       // Add port button handlers
@@ -701,6 +736,31 @@
 
     function getPinnedServices() {
       return getPins();
+    }
+    
+    // --- Delete service functions
+    function getDeletedServices() {
+      try {
+        return JSON.parse(localStorage.getItem('deletedServices') || '[]');
+      } catch {
+        return [];
+      }
+    }
+    
+    function setDeletedServices(deleted) {
+      localStorage.setItem('deletedServices', JSON.stringify(deleted));
+    }
+    
+    function deleteService(title) {
+      const deleted = getDeletedServices();
+      if (!deleted.includes(title)) {
+        deleted.push(title);
+        setDeletedServices(deleted);
+      }
+    }
+    
+    function isServiceDeleted(title) {
+      return getDeletedServices().includes(title);
     }
 
     // --- Main render function
