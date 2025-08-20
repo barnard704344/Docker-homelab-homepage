@@ -553,6 +553,18 @@
         // Update service assignment
         function updateServiceAssignment(serviceTitle, categoryKey) {
             serviceAssignments[serviceTitle] = categoryKey;
+            
+            // Auto-save assignments immediately
+            fetch('/setup-data.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'save_assignments',
+                    assignments: serviceAssignments
+                })
+            }).catch(error => {
+                console.error('Failed to save assignment:', error);
+            });
         }
         
         // Toggle add service form
