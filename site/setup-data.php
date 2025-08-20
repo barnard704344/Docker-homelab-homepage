@@ -4,24 +4,46 @@ header('Cache-Control: no-cache, no-store, must-revalidate');
 header('Pragma: no-cache');
 header('Expires: 0');
 
-// Data files
-$categoriesFile = '/var/www/site/data/categories.json';
-$assignmentsFile = '/var/www/site/data/service-assignments.json';
-$servicesFile = '/var/www/site/data/services.json';
+// Data files - try multiple locations for Docker volume mount compatibility
+$dataDir = '/var/www/site/data';
+$writableDir = '/var/www/site/data/writable';
+$tmpDir = '/tmp/homepage-data';
+
+// Determine the best writable location
+$actualDataDir = $dataDir;
+if (!is_writable($dataDir)) {
+    if (is_dir($writableDir) && is_writable($writableDir)) {
+        $actualDataDir = $writableDir;
+    } elseif (is_dir($tmpDir) && is_writable($tmpDir)) {
+        $actualDataDir = $tmpDir;
+    } else {
+        // Try to create writable directory
+        if (@mkdir($writableDir, 0777, true) && is_writable($writableDir)) {
+            $actualDataDir = $writableDir;
+        } elseif (@mkdir($tmpDir, 0777, true) && is_writable($tmpDir)) {
+            $actualDataDir = $tmpDir;
+        }
+    }
+}
+
+$categoriesFile = $actualDataDir . '/categories.json';
+$assignmentsFile = $actualDataDir . '/service-assignments.json';
+$servicesFile = $actualDataDir . '/services.json';
 $servicesCompatFile = '/var/www/site/services.json';
 
 // Ensure data directory exists with proper permissions
-if (!is_dir('/var/www/site/data')) {
-    mkdir('/var/www/site/data', 0777, true);
-    chmod('/var/www/site/data', 0777);
+$dataDirectory = dirname($categoriesFile);
+if (!is_dir($dataDirectory)) {
+    mkdir($dataDirectory, 0777, true);
+    chmod($dataDirectory, 0777);
 }
 
 // Try to fix permissions if we can't write
-if (!is_writable('/var/www/site/data')) {
+if (!is_writable($dataDirectory)) {
     // Try to fix permissions
-    @chmod('/var/www/site/data', 0777);
-    @chown('/var/www/site/data', 'nginx');
-    @chgrp('/var/www/site/data', 'nginx');
+    @chmod($dataDirectory, 0777);
+    @chown($dataDirectory, 'nginx');
+    @chgrp($dataDirectory, 'nginx');
 }
 
 // Default categories

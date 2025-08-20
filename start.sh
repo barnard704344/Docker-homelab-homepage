@@ -36,11 +36,43 @@ echo "[start] Setting up persistent data directory..."
 mkdir -p /var/www/site/data
 mkdir -p /var/www/site/data/scan
 
-# Set maximum permissions for category management to work - be very aggressive
-echo "[start] Setting 777 permissions for data directory..."
-chmod 777 /var/www/site/data
-chmod 777 /var/www/site/data/scan
-chmod -R 777 /var/www/site/data
+# CRITICAL: Docker volume mounts preserve host permissions
+# We need to work around this by using a different approach
+echo "[start] Handling Docker volume mount permissions..."
+
+# Method 1: Try to change permissions directly (works if host allows)
+chmod 777 /var/www/site/data 2>/dev/null || echo "[start] Cannot chmod data directory (volume mount)"
+chmod 777 /var/www/site/data/scan 2>/dev/null || true
+
+# Method 2: If chmod fails, create a writable subdirectory
+if [ ! -w "/var/www/site/data" ]; then
+    echo "[start] Data directory not writable, creating writable subdirectory..."
+    mkdir -p /var/www/site/data/writable 2>/dev/null || true
+    chmod 777 /var/www/site/data/writable 2>/dev/null || true
+    
+    # Use the writable subdirectory for our JSON files
+    if [ -w "/var/www/site/data/writable" ]; then
+        echo "[start] Using writable subdirectory for data storage"
+        # Create symlinks from expected locations to writable directory
+        ln -sf /var/www/site/data/writable/categories.json /var/www/site/data/categories.json 2>/dev/null || true
+        ln -sf /var/www/site/data/writable/service-assignments.json /var/www/site/data/service-assignments.json 2>/dev/null || true
+        ln -sf /var/www/site/data/writable/services.json /var/www/site/data/services.json 2>/dev/null || true
+    fi
+fi
+
+# Method 3: If all else fails, use /tmp and symlink back
+if [ ! -w "/var/www/site/data" ] && [ ! -w "/var/www/site/data/writable" ]; then
+    echo "[start] Creating temporary writable storage in /tmp..."
+    mkdir -p /tmp/homepage-data
+    chmod 777 /tmp/homepage-data
+    chown nginx:nginx /tmp/homepage-data
+    
+    # Create symlinks from data directory to temp storage
+    ln -sf /tmp/homepage-data/categories.json /var/www/site/data/categories.json 2>/dev/null || true
+    ln -sf /tmp/homepage-data/service-assignments.json /var/www/site/data/service-assignments.json 2>/dev/null || true
+    ln -sf /tmp/homepage-data/services.json /var/www/site/data/services.json 2>/dev/null || true
+    echo "[start] Using /tmp storage for category data (non-persistent across container restarts)"
+fi
 
 # Try different ownership approaches
 echo "[start] Setting ownership..."
@@ -49,8 +81,7 @@ chown -R www-data:www-data /var/www/site/data 2>/dev/null || true
 chown -R nobody:nobody /var/www/site/data 2>/dev/null || true
 
 # Force permissions again after ownership changes - this is critical
-chmod -R 777 /var/www/site/data
-chmod 777 /var/www/site/data
+chmod -R 777 /var/www/site/data 2>/dev/null || true
 
 # Create empty files with proper permissions if they don't exist
 touch /var/www/site/data/categories.json 2>/dev/null || true
