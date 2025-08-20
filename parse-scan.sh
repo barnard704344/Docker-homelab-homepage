@@ -3,7 +3,10 @@ set -e
 
 # Parse nmap scan results and generate services.json for the homepage
 SCAN_FILE="/var/www/site/data/scan/last-scan.txt"
-SERVICES_F# Load custom category assignments and names
+SERVICES_FILE="/var/www/site/data/services.json"
+SERVICES_FILE_COMPAT="/var/www/site/services.json"
+
+# Load custom category assignments and names
 declare -A category_assignments
 declare -A category_names
 declare -A custom_ports
