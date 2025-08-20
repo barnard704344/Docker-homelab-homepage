@@ -10,30 +10,20 @@ echo "Setting up container with persistent storage..."
 echo "Creating host data directory with 777 permissions..."
 mkdir -p ./data
 
-echo "Current directory: $(pwd)"
-echo "Data directory before chmod: $(ls -ld ./data)"
+# CRITICAL: Docker volume mounts preserve HOST permissions 
+# Set correct ownership and permissions BEFORE container starts
+echo "Setting host directory ownership and permissions..."
+sudo chown -R 1000:1000 ./data 2>/dev/null || chown -R $(id -u):$(id -g) ./data 2>/dev/null || true
+chmod -R 777 ./data
 
-# CRITICAL: Set 777 permissions on HOST directory BEFORE Docker mount
-# Docker volume mounts preserve host permissions, container cannot override them
-echo "Setting chmod 777 on ./data..."
-chmod 777 ./data
-echo "chmod command completed with exit code: $?"
-
-echo "Data directory after chmod: $(ls -ld ./data)"
+echo "Host data directory permissions set:"
+ls -la ./data
 
 # Verify the permissions were actually set
 ACTUAL_PERMS=$(stat -c "%a" ./data 2>/dev/null || echo "000")
-echo "Detected permissions: $ACTUAL_PERMS"
-if [ "$ACTUAL_PERMS" = "777" ]; then
-    echo "✅ Host directory permissions verified: 777"
-else
-    echo "❌ WARNING: Host directory permissions are: $ACTUAL_PERMS (should be 777)"
-    echo "Attempting to fix with sudo..."
-    sudo chmod 777 ./data 2>/dev/null || echo "Could not fix permissions"
-    
-    # Check again after sudo
-    ACTUAL_PERMS=$(stat -c "%a" ./data 2>/dev/null || echo "000")
-    echo "Permissions after sudo attempt: $ACTUAL_PERMS"
+echo "Host directory permissions: $ACTUAL_PERMS"
+if [ "$ACTUAL_PERMS" != "777" ]; then
+    echo "❌ WARNING: Could not set 777 permissions"
 fi
 
 echo "Stopping existing container..."

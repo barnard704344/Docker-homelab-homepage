@@ -41,79 +41,29 @@ echo "[start] Setting up persistent data directory..."
 mkdir -p /var/www/site/data
 mkdir -p /var/www/site/data/scan
 
-# Setup persistent data directory - Docker volume mount permission workaround
-echo "[start] Setting up persistent data directory..."
+# Setup persistent data directory - verify volume mount permissions
+echo "[start] Verifying persistent data directory..."
 mkdir -p /var/www/site/data
 mkdir -p /var/www/site/data/scan
 
-# CRITICAL: Docker volume mounts preserve host permissions and cannot be changed
-# Workaround: Add nginx user to root group and set group write permissions
-echo "[start] Working around Docker volume mount permission restrictions..."
-
-# Get the current owner and group of the mounted directory
-OWNER=$(stat -c "%U" /var/www/site/data 2>/dev/null || echo "root")
-GROUP=$(stat -c "%G" /var/www/site/data 2>/dev/null || echo "root")
-echo "[start] Volume mount owner: $OWNER, group: $GROUP"
-
-# Try multiple approaches to enable writing
-echo "[start] Attempting permission fixes..."
-
-# Method 1: Try to change permissions (may fail with volume mounts)
-chmod -R 777 /var/www/site/data 2>/dev/null || echo "[start] chmod failed (expected with volume mounts)"
-
-# Method 2: Add nginx to various groups that might have access
-addgroup nginx root 2>/dev/null || echo "[start] nginx already in root group"
-addgroup nginx $GROUP 2>/dev/null || echo "[start] nginx already in $GROUP group"
-
-# Method 3: Change group ownership if possible
-chgrp -R nginx /var/www/site/data 2>/dev/null || echo "[start] chgrp failed (expected with volume mounts)"
-
-# Method 4: Set group write permissions
-chmod -R g+w /var/www/site/data 2>/dev/null || echo "[start] group write failed"
-
-# Method 5: Make nginx user part of the same UID as the volume mount owner
-if [ "$OWNER" != "nginx" ] && [ "$OWNER" != "root" ]; then
-    echo "[start] Attempting to match UIDs..."
-    OWNER_UID=$(stat -c "%u" /var/www/site/data 2>/dev/null || echo "0")
-    if [ "$OWNER_UID" != "0" ]; then
-        # Change nginx user to match the volume mount UID
-        usermod -u $OWNER_UID nginx 2>/dev/null || echo "[start] usermod failed"
-        chown -R nginx:nginx /var/www/site/data 2>/dev/null || echo "[start] chown after usermod failed"
-    fi
-fi
-
-# Final verification
+# Check what permissions Docker volume mount preserved
 ACTUAL_PERMS=$(stat -c "%a" /var/www/site/data 2>/dev/null || echo "000")
-echo "[start] Final directory permissions: $ACTUAL_PERMS"
+OWNER=$(stat -c "%U" /var/www/site/data 2>/dev/null || echo "unknown")
+GROUP=$(stat -c "%G" /var/www/site/data 2>/dev/null || echo "unknown")
 
-# Test write capability with different approaches
-echo "[start] Testing write capability..."
+echo "[start] Volume mount permissions: $ACTUAL_PERMS, owner: $OWNER, group: $GROUP"
+
+# Set nginx as owner regardless of permissions
+chown -R nginx:nginx /var/www/site/data 2>/dev/null || true
+
+# Test write capability
 TEST_FILE="/var/www/site/data/write-test-$$"
-
-# Test as root
-if echo "test" > "$TEST_FILE" 2>/dev/null; then
-    rm -f "$TEST_FILE"
-    echo "[start] ✅ Root can write to data directory"
-    ROOT_CAN_WRITE=1
-else
-    echo "[start] ❌ Root cannot write to data directory"
-    ROOT_CAN_WRITE=0
-fi
-
-# Test as nginx user
 if su -s /bin/sh nginx -c "echo test > $TEST_FILE" 2>/dev/null; then
     rm -f "$TEST_FILE"
     echo "[start] ✅ nginx user can write to data directory"
-    NGINX_CAN_WRITE=1
 else
-    echo "[start] ❌ nginx user cannot write to data directory"
-    NGINX_CAN_WRITE=0
-fi
-
-# If nginx can't write but root can, we'll need to run PHP as root
-if [ $ROOT_CAN_WRITE -eq 1 ] && [ $NGINX_CAN_WRITE -eq 0 ]; then
-    echo "[start] ⚠️  Only root can write - this may cause category management issues"
-    echo "[start] Consider running container with: docker run --user root"
+    echo "[start] ❌ nginx user cannot write - permission issue remains"
+    echo "[start] Host directory must have proper ownership before container start"
 fi
 
 # Create empty files with proper permissions if they don't exist
