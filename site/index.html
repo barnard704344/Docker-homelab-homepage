@@ -314,6 +314,9 @@
         
         // Apply category assignments from setup
         await applyCategoryAssignments();
+        
+        // Clean up any deleted services that have been rediscovered
+        cleanupRediscoveredServices();
       } catch (err) {
         console.log('Could not load services.json:', err.message);
         DYNAMIC_LINKS = [];
@@ -783,7 +786,52 @@
       return deleted[title] || null;
     }
 
-    // --- Main render function
+    // Clean up deleted services that have been rediscovered
+    function cleanupRediscoveredServices() {
+      const deleted = getDeletedServices();
+      const currentServices = new Set();
+      
+      // Collect all current service titles from both static and dynamic links
+      [...LINKS, ...DYNAMIC_LINKS].forEach(link => {
+        if (link.title) {
+          currentServices.add(link.title);
+        }
+      });
+      
+      // Remove any deleted services that are now present in current scan
+      let updated = false;
+      for (const serviceName in deleted) {
+        if (currentServices.has(serviceName)) {
+          delete deleted[serviceName];
+          updated = true;
+          console.log(`Cleared deleted service '${serviceName}' - rediscovered in scan`);
+        }
+      }
+      
+      if (updated) {
+        setDeletedServices(deleted);
+      }
+    }
+
+    // Manual function to clear a specific deleted service (for debugging)
+    function clearDeletedService(serviceName) {
+      const deleted = getDeletedServices();
+      if (deleted.hasOwnProperty(serviceName)) {
+        delete deleted[serviceName];
+        setDeletedServices(deleted);
+        console.log(`Manually cleared deleted service: ${serviceName}`);
+        render(); // Re-render to show the service
+        return true;
+      }
+      return false;
+    }
+
+    // Manual function to clear all deleted services (for debugging)
+    function clearAllDeletedServices() {
+      localStorage.removeItem('deletedServices');
+      console.log('Cleared all deleted services');
+      render();
+    }    // --- Main render function
     function render() {
       grid.innerHTML = '';
       let links = mergedLinks();
