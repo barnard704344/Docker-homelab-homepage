@@ -26,10 +26,12 @@ RUN chmod +x /usr/local/bin/scan.sh /usr/local/bin/parse-scan.sh /usr/local/bin/
     ln -sf /usr/local/bin/scan.sh /opt/scan.sh && \
     chmod +x /var/www/site/run-scan.php /var/www/site/debug.php || true
 
-# Configure PHP-FPM
+# Configure PHP-FPM to run as nginx user
 RUN sed -i 's/listen = 127.0.0.1:9000/listen = 9000/' /etc/php82/php-fpm.d/www.conf && \
     sed -i 's/;listen.owner = nobody/listen.owner = nginx/' /etc/php82/php-fpm.d/www.conf && \
-    sed -i 's/;listen.group = nobody/listen.group = nginx/' /etc/php82/php-fpm.d/www.conf
+    sed -i 's/;listen.group = nobody/listen.group = nginx/' /etc/php82/php-fpm.d/www.conf && \
+    sed -i 's/user = nobody/user = nginx/' /etc/php82/php-fpm.d/www.conf && \
+    sed -i 's/group = nobody/group = nginx/' /etc/php82/php-fpm.d/www.conf
 
 # Expose HTTP (informational; not used when --network host)
 EXPOSE 80
