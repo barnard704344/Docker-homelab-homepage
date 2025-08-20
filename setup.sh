@@ -64,24 +64,49 @@ docker run -d \
   -v "$(pwd)/data:/var/www/site/data" \
   homepage
 
-echo "Checking status..."
-sleep 3
-docker ps -f name=homepage
+echo "Waiting for container to start..."
+sleep 5
 
 echo "Ensuring data directory permissions inside container..."
+# Fix permissions inside the container after it starts
+docker exec homepage mkdir -p /var/www/site/data 2>/dev/null || true
 docker exec homepage chmod -R 777 /var/www/site/data 2>/dev/null || true
 docker exec homepage chown -R nginx:nginx /var/www/site/data 2>/dev/null || true
+
+# Create essential JSON files inside container if they don't exist
+docker exec homepage touch /var/www/site/data/categories.json 2>/dev/null || true
+docker exec homepage touch /var/www/site/data/service-assignments.json 2>/dev/null || true  
+docker exec homepage touch /var/www/site/data/services.json 2>/dev/null || true
+docker exec homepage chmod 666 /var/www/site/data/*.json 2>/dev/null || true
+
+echo "Verifying permissions setup..."
 docker exec homepage ls -la /var/www/site/data 2>/dev/null || echo "Could not list data directory"
 
-echo ""
-echo "Testing category management permissions..."
+echo "Checking status..."
 sleep 2
-curl -s http://localhost/setup-debug.php | head -10 || echo "Debug endpoint not available yet"
+docker ps -f name=homepage
+
+echo "Testing category management permissions..."
+sleep 3
+if curl -s http://localhost/setup-debug.php | head -10; then
+    echo ""
+    echo "✅ Setup completed successfully!"
+else
+    echo ""
+    echo "⚠️  Debug endpoint not ready yet, but container is running"
+fi
 
 echo ""
 echo "Setup complete! Your homepage should be available at:"
 echo "  http://$(hostname -I | awk '{print $1}')/"
 echo "  http://localhost/"
 echo ""
+echo "🔧 Setup page: http://$(hostname -I | awk '{print $1}')/setup.html"
+echo "🐛 Debug info: http://$(hostname -I | awk '{print $1}')/setup-debug.php"
+echo ""
 echo "To check logs: docker logs homepage"
-echo "To debug: curl http://localhost/debug.php"
+echo "To test category creation:"
+echo "  curl -X POST -H 'Content-Type: application/json' -d '{\"action\":\"save_categories\",\"categories\":{\"test\":\"Test Category\"}}' http://localhost/setup-data.php"
+echo ""
+echo "If category saving fails, check permissions with:"
+echo "  docker exec homepage ls -la /var/www/site/data"
