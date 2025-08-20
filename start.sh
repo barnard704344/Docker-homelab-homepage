@@ -46,24 +46,52 @@ echo "[start] Verifying persistent data directory..."
 mkdir -p /var/www/site/data
 mkdir -p /var/www/site/data/scan
 
-# Check what permissions Docker volume mount preserved
+# CRITICAL: Force correct permissions regardless of what volume mount shows
+echo "[start] FORCING correct permissions for PHP write access..."
+chmod -R 777 /var/www/site/data
+chown -R nginx:nginx /var/www/site/data
+chmod 777 /var/www/site/data  # Ensure directory itself is 777
+
+# Check what permissions we actually have
 ACTUAL_PERMS=$(stat -c "%a" /var/www/site/data 2>/dev/null || echo "000")
 OWNER=$(stat -c "%U" /var/www/site/data 2>/dev/null || echo "unknown")
 GROUP=$(stat -c "%G" /var/www/site/data 2>/dev/null || echo "unknown")
 
-echo "[start] Volume mount permissions: $ACTUAL_PERMS, owner: $OWNER, group: $GROUP"
+echo "[start] After forced permissions:"
+echo "[start]   Permissions: $ACTUAL_PERMS"
+echo "[start]   Owner: $OWNER"
+echo "[start]   Group: $GROUP"
 
-# Set nginx as owner regardless of permissions
-chown -R nginx:nginx /var/www/site/data 2>/dev/null || true
+# If still not 777, try different approach
+if [ "$ACTUAL_PERMS" != "777" ]; then
+    echo "[start] Permissions still not 777, trying alternative approaches..."
+    # Change nginx user to match directory owner
+    OWNER_UID=$(stat -c "%u" /var/www/site/data 2>/dev/null || echo "0")
+    OWNER_GID=$(stat -c "%g" /var/www/site/data 2>/dev/null || echo "0")
+    
+    if [ "$OWNER_UID" != "0" ] && [ "$OWNER_UID" != "$(id -u nginx)" ]; then
+        echo "[start] Changing nginx UID from $(id -u nginx) to $OWNER_UID"
+        usermod -u $OWNER_UID nginx 2>/dev/null || echo "[start] usermod failed"
+    fi
+    
+    # Try chown again
+    chown -R nginx:nginx /var/www/site/data
+    chmod -R 777 /var/www/site/data
+    
+    # Final check
+    FINAL_PERMS=$(stat -c "%a" /var/www/site/data 2>/dev/null || echo "000")
+    echo "[start] Final permissions after UID fix: $FINAL_PERMS"
+fi
 
-# Test write capability
+# Test write capability as nginx user
 TEST_FILE="/var/www/site/data/write-test-$$"
 if su -s /bin/sh nginx -c "echo test > $TEST_FILE" 2>/dev/null; then
     rm -f "$TEST_FILE"
     echo "[start] ✅ nginx user can write to data directory"
 else
-    echo "[start] ❌ nginx user cannot write - permission issue remains"
-    echo "[start] Host directory must have proper ownership before container start"
+    echo "[start] ❌ nginx user still cannot write - checking directory contents"
+    ls -la /var/www/site/data
+    echo "[start] nginx user info: $(id nginx)"
 fi
 
 # Create empty files with proper permissions if they don't exist

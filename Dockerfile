@@ -1,8 +1,8 @@
 # ---- base image with nginx + nmap + php ----
 FROM alpine:3.20
 
-# Install nginx, nmap, bash, curl, php-fpm, jq
-RUN apk add --no-cache nginx nmap bash curl php82-fpm php82-json php82-session jq
+# Install nginx, nmap, bash, curl, php-fpm, jq, php-posix for user info
+RUN apk add --no-cache nginx nmap bash curl php82-fpm php82-json php82-session php82-posix jq
 
 # Create web root and app dir
 RUN mkdir -p /var/www/site /app /run/nginx /run/php
