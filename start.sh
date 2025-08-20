@@ -96,10 +96,24 @@ fi
 
 # Create empty files with proper permissions if they don't exist
 if [[ ! -f /var/www/site/data/categories.json ]]; then
-    echo '{}' > /var/www/site/data/categories.json 2>/dev/null || true
+    echo '{
+    "network": "Network",
+    "media": "Media",
+    "home-automation": "Home Automation",
+    "web-service": "Web Service",
+    "server": "Server",
+    "development": "Development",
+    "monitoring": "Monitoring",
+    "nas": "NAS & Storage",
+    "ai": "AI & Machine Learning",
+    "other": "Other"
+}' > /var/www/site/data/categories.json 2>/dev/null || true
 fi
 if [[ ! -f /var/www/site/data/service-assignments.json ]]; then
     echo '{}' > /var/www/site/data/service-assignments.json 2>/dev/null || true
+fi
+if [[ ! -f /var/www/site/data/custom-ports.json ]]; then
+    echo '[]' > /var/www/site/data/custom-ports.json 2>/dev/null || true
 fi
 if [[ ! -f /var/www/site/data/services.json ]]; then
     echo '[]' > /var/www/site/data/services.json 2>/dev/null || true

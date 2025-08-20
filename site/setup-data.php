@@ -116,6 +116,12 @@ try {
         switch ($action) {
             case 'get_categories':
                 $categories = loadJsonFile($categoriesFile, $defaultCategories);
+                // If categories file doesn't exist or is empty, initialize with defaults
+                if (empty($categories)) {
+                    $categories = $defaultCategories;
+                    // Save the defaults to the file so they persist
+                    saveJsonFile('categories.json', $categories);
+                }
                 echo json_encode($categories);
                 break;
                 
