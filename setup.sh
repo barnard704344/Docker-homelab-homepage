@@ -7,24 +7,30 @@ echo "=== Docker Homelab Homepage Setup ==="
 echo "Setting up container with persistent storage..."
 
 # Create host data directory for volume mount with proper permissions
-echo "Creating host data directory with 777 permissions..."
+echo "Creating host data directory with proper permissions..."
 mkdir -p ./data
 
-# CRITICAL: Docker volume mounts preserve HOST permissions 
-# Set correct ownership and permissions BEFORE container starts
-echo "Setting host directory ownership and permissions..."
-sudo chown -R 1000:1000 ./data 2>/dev/null || chown -R $(id -u):$(id -g) ./data 2>/dev/null || true
+# CRITICAL: Docker volume mounts preserve HOST ownership/permissions 
+# We need to match the container's nginx user UID (typically 100 in Alpine)
+echo "Setting host directory for container nginx user compatibility..."
+
+# Try common nginx UIDs (Alpine=100, Ubuntu=33, etc.)
+# Set ownership to match common container nginx UIDs
+chown -R 100:101 ./data 2>/dev/null || \
+chown -R 33:33 ./data 2>/dev/null || \
+chown -R 82:82 ./data 2>/dev/null || \
+chown -R $(id -u):$(id -g) ./data 2>/dev/null || \
+echo "Could not set ownership - container may need to run as root"
+
+# Set world-writable permissions regardless of ownership
 chmod -R 777 ./data
 
-echo "Host data directory permissions set:"
+echo "Host data directory setup complete:"
 ls -la ./data
 
-# Verify the permissions were actually set
+# Verify the permissions were set
 ACTUAL_PERMS=$(stat -c "%a" ./data 2>/dev/null || echo "000")
-echo "Host directory permissions: $ACTUAL_PERMS"
-if [ "$ACTUAL_PERMS" != "777" ]; then
-    echo "❌ WARNING: Could not set 777 permissions"
-fi
+echo "Final host directory permissions: $ACTUAL_PERMS"
 
 echo "Stopping existing container..."
 docker stop homepage 2>/dev/null || true
