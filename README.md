@@ -45,7 +45,7 @@ bash setup.sh
 
 ### 3. First-Time Setup
 1. Visit the setup page to configure categories and custom ports
-2. The container automatically scans on startup, or trigger manually with: `docker exec homepage /usr/local/bin/scan.sh`
+2. The container automatically scans on startup, or trigger manually with: `docker exec homelab-homepage /usr/local/bin/scan.sh`
 3. Assign discovered services to categories
 4. Customize service settings as needed
 
@@ -117,14 +117,12 @@ Docker-homelab-homepage/
 If you encounter git errors or `git pull` fails, you can rebuild the container from scratch:
 
 ```bash
-```bash
-docker stop homepage
-docker rm homepage
-```
+# Stop and remove the existing container
+docker stop homelab-homepage
+docker rm homelab-homepage
 
-To rebuild and update with newer image versions:
-```bash
-docker rmi homepage
+# Remove the old image (optional but recommended)
+docker rmi homelab-homepage
 
 # Fresh clone and rebuild
 cd ..
