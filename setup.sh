@@ -31,9 +31,16 @@ else
     chmod -R 777 ./data 2>/dev/null || true
 fi
 
+# Create essential data files with proper permissions
+echo "Creating essential data files..."
+touch ./data/categories.json ./data/service-assignments.json ./data/services.json 2>/dev/null || true
+chmod 666 ./data/*.json 2>/dev/null || true
+
 # Double-check the data directory is accessible
 if [[ -d ./data ]]; then
     echo "Data directory exists and has permissions: $(ls -ld ./data)"
+    echo "Data files:"
+    ls -la ./data/ 2>/dev/null || echo "No files in data directory yet"
 else
     echo "WARNING: Data directory does not exist after creation attempt"
 fi
@@ -60,6 +67,16 @@ docker run -d \
 echo "Checking status..."
 sleep 3
 docker ps -f name=homepage
+
+echo "Ensuring data directory permissions inside container..."
+docker exec homepage chmod -R 777 /var/www/site/data 2>/dev/null || true
+docker exec homepage chown -R nginx:nginx /var/www/site/data 2>/dev/null || true
+docker exec homepage ls -la /var/www/site/data 2>/dev/null || echo "Could not list data directory"
+
+echo ""
+echo "Testing category management permissions..."
+sleep 2
+curl -s http://localhost/setup-debug.php | head -10 || echo "Debug endpoint not available yet"
 
 echo ""
 echo "Setup complete! Your homepage should be available at:"
