@@ -1,137 +1,81 @@
 # Docker Homelab Homepage
 
-A self-hosted homepage that automatically discovers services on your network using a Docker container (built on Alpine Linux) + nginx + PHP + nmap. Features automatic network scanning, service categorization, port management, and a clean web interface.
+A self-hosted homepage that automatically discovers and organizes services on your network. Built with Docker + nmap for easy deployment and network scanning.
 
 ## Features
 
-### 🔍 **Automatic Network Discovery**
-- Scans your network subnet using nmap to discover running services
-- Detects 40+ common service ports (HTTP, HTTPS, SSH, DNS, media servers, etc.)
-- Real-time service status checking
-- Automatic protocol detection (HTTP/HTTPS/TCP/SSH)
-
-### 🏷️ **Service Management**
-- **Custom Categories**: Organize services into custom categories (Media, Network, Development, etc.)
-- **Service Deletion**: Permanently delete services with one click - they'll be rediscovered fresh if they come back online
-- **Custom Ports**: Add additional ports for scanning beyond the default set
-- **Port Selection**: Choose which port to use when services run on multiple ports
-- **Service Pinning**: Pin frequently used services to the top
-
-### 🎨 **Clean Web Interface** 
-- Responsive grid layout with service cards
-- Real-time service status indicators
-- Setup page for configuration management
-- Mobile-friendly design
-
-### ⚙️ **Advanced Configuration**
-- Persistent category assignments and custom ports
+- **🔍 Automatic Discovery**: Scans your network to find running services
+- **🏷️ Service Organization**: Organize services into custom categories  
+- **📌 Quick Access**: Pin frequently used services to the top
+- **🎨 Clean Interface**: Responsive web interface that works on all devices
+- **⚙️ Persistent Storage**: Settings and data survive container updates
 
 ## Quick Start
 
-### Prerequisites
-- Docker
-- Network access to scan your subnet
-
-### 1. Clone and Run
 ```bash
 git clone https://github.com/barnard704344/Docker-homelab-homepage.git
 cd Docker-homelab-homepage
 bash setup.sh
 ```
 
-### 2. Access the Interface
-- **Homepage**: http://your-server-ip
-- **Setup Page**: http://your-server-ip/setup.html
-
-### 3. First-Time Setup
-1. Visit the setup page to configure categories and custom ports
-2. The container automatically scans on startup, or trigger manually with: `docker exec homelab-homepage /usr/local/bin/scan.sh`
-3. Assign discovered services to categories
-4. Customize service settings as needed
+Then visit http://localhost or http://your-server-ip
 
 ## Configuration
 
+### Initial Setup
+1. Visit `/setup.html` to configure categories and scanning options
+2. The first scan runs automatically, or manually trigger with: `docker exec homepage /usr/local/bin/scan.sh`
+3. Organize discovered services into categories
+4. Pin your most-used services for quick access
+
+### Environment Variables
+Set these in your Docker run command or modify `setup.sh`:
+
+- `SUBNETS`: Networks to scan (default: `192.168.1.0/24`)
+- `SCAN_INTERVAL`: Auto-scan interval in minutes (default: `10`, set to `0` to disable)
+- `RUN_SCAN_ON_START`: Run scan at startup (default: `1`)
+
 ### Custom Ports
-Add custom ports via the setup interface.
+Add additional ports to scan via the setup interface. The scanner detects common service ports including web servers (80, 443, 8080), databases (3306, 5432), media servers (8096, 32400), and more.
 
-### Service Categories
-Categories are automatically created and can be customized via the web interface.
+## Management
 
-## Default Port Detection
-
-The scanner automatically detects these services:
-
-| Ports | Service Type | Examples |
-|-------|--------------|----------|
-| 22 | SSH | OpenSSH |
-| 53 | DNS | Pi-hole, AdGuard, Technitium |
-| 80, 8080, 8000, 8008, 8090 | HTTP | Web servers, dashboards |
-| 443, 8443, 9443 | HTTPS | Secure web services |
-| 139, 445 | SMB/CIFS | File shares, NAS |
-| 993, 995 | Secure Email | IMAPS, POP3S |
-| 3389 | RDP | Windows Remote Desktop |
-| 5432 | PostgreSQL | Database |
-| 3306 | MySQL/MariaDB | Database |
-| 6379 | Redis | Cache/Database |
-| 8096 | Jellyfin | Media Server |
-| 32400 | Plex | Media Server |
-| And many more... | | |
-
-## File Structure
-
-```
-Docker-homelab-homepage/
-├── Dockerfile              # Container definition
-├── nginx.conf             # Nginx web server config
-├── setup.sh               # Build and run script
-├── start.sh               # Container startup script
-├── scan.sh                # Network scanning logic
-├── parse-scan.sh          # Scan result parser
-├── ports.map              # Default port definitions
-├── debug.php              # Debug utilities
-├── run-scan.php           # Scan trigger endpoint
-├── site/                  # Web interface files
-│   ├── index.html         # Main homepage
-│   ├── setup.html         # Configuration interface
-│   └── setup-data.php     # Backend API
-└── data/                  # Persistent data directory
-    ├── services.json      # Discovered services
-    ├── categories.json    # Service categories
-    ├── service-assignments.json  # Category assignments
-    ├── custom-ports.json  # User-defined ports
-    └── scan/              # Scan results and logs
-```
-
-## API Endpoints
-
-### Service Management
-- `POST /setup-data.php` - Main API endpoint
-  - `action=get_services` - Get all discovered services
-  - `action=save_assignments` - Save service category assignments
-  - `action=save_categories` - Save category definitions
-  - `action=save_custom_ports` - Save custom scanning ports
-  - `action=delete_service` - Permanently delete a service
-
-## Updating
-
-If you encounter git errors or `git pull` fails, you can rebuild the container from scratch:
-
+### Container Commands
 ```bash
-# Stop and remove the existing container
-docker stop homelab-homepage
-docker rm homelab-homepage
+# View logs
+docker logs homepage
 
-# Remove the old image (optional but recommended)
-docker rmi homelab-homepage
+# Manual scan
+docker exec homepage /usr/local/bin/scan.sh
 
-# Fresh clone and rebuild
-cd ..
-rm -rf Docker-homelab-homepage
-git clone https://github.com/barnard704344/Docker-homelab-homepage.git
-cd Docker-homelab-homepage
+# Restart container
+docker restart homepage
+
+# Stop container
+docker stop homepage
+```
+
+### Updates
+```bash
+git pull
 bash setup.sh
 ```
 
+Your data and settings will persist across updates.
+
+## Troubleshooting
+
+### Container Won't Start
+Check logs: `docker logs homepage`
+
+### No Services Found
+1. Verify your network subnet in environment variables
+2. Check that services are actually running on expected ports
+3. Ensure the container can reach your network
+
+### Permissions Issues
+The setup script handles permissions automatically. If you encounter issues, ensure the `./data` directory is writable.
+
 ---
 
-**Note**: This homepage is designed for internal network use. It automatically scans and catalogs services on your network, so ensure you're comfortable with the security implications for your environment.
+**Security Note**: This tool scans your network and is intended for internal use only.
