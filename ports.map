@@ -1,5 +1,6 @@
 # port,scheme,tag,desc
 80,http,web,HTTP
+81,http,web,NPM
 443,https,web,HTTPS
 8006,https,vm,Proxmox
 8080,http,web,HTTP-alt
