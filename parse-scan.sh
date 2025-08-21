@@ -49,6 +49,21 @@ fi
 # Simple approach - extract hosts with their open ports
 services=()
 
+# Load custom ports to treat them as HTTP
+declare -A custom_http_ports
+CUSTOM_PORTS_FILE="/var/www/site/data/custom-ports.json"
+if [[ -f "$CUSTOM_PORTS_FILE" ]]; then
+    echo "[discovery] Loading custom HTTP ports..."
+    if command -v jq >/dev/null 2>&1; then
+        while IFS= read -r port; do
+            if [[ -n "$port" ]]; then
+                custom_http_ports["$port"]="1"
+                echo "[discovery] Custom HTTP port: $port"
+            fi
+        done < <(jq -r '.[].port' "$CUSTOM_PORTS_FILE" 2>/dev/null || true)
+    fi
+fi
+
 echo "[discovery] Extracting hosts and their ports..."
 current_host=""
 current_ip=""
@@ -185,6 +200,10 @@ for service_line in "${services[@]}"; do
                     primary_url="http://$ip"
                     available_ports+=("$port:http://$ip")
                     ;;
+                81) 
+                    primary_url="http://$ip:$port"
+                    available_ports+=("$port:http://$ip:$port")
+                    ;;
                 443) 
                     primary_url="https://$ip"
                     available_ports+=("$port:https://$ip")
@@ -231,8 +250,14 @@ for service_line in "${services[@]}"; do
                             available_ports+=("$port:https://$ip:$port")
                             ;;
                         *)
+                            # Check if this is a custom HTTP port from setup page
+                            if [[ -n "${custom_http_ports[$port]}" ]]; then
+                                if [[ -z "$primary_url" ]]; then
+                                    primary_url="http://$ip:$port"
+                                fi
+                                available_ports+=("$port:http://$ip:$port")
                             # Default to http for high ports, raw for system ports
-                            if [[ $port -gt 1000 ]]; then
+                            elif [[ $port -gt 1000 ]]; then
                                 if [[ -z "$primary_url" ]]; then
                                     primary_url="http://$ip:$port"
                                 fi
