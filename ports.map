@@ -1,17 +1,51 @@
 # port,scheme,tag,desc
+21,ftp,file,FTP
+22,ssh,admin,SSH
+23,telnet,admin,Telnet
+25,smtp,mail,SMTP
+53,dns,network,DNS
 80,http,web,HTTP
 81,http,web,NPM
+110,pop3,mail,POP3
+143,imap,mail,IMAP
 443,https,web,HTTPS
-8006,https,vm,Proxmox
-8080,http,web,HTTP-alt
-8443,https,web,HTTPS-alt
-32400,https,media,Plex
-9090,http,metrics,Prometheus
-9093,http,alerts,Alertmanager
-9000,https,docker,Portainer
+993,imaps,mail,IMAPS
+995,pop3s,mail,POP3S
+1433,tcp,database,SQL Server
+2375,http,docker,Docker API
+2376,https,docker,Docker API (TLS)
 3000,https,metrics,Grafana
 3001,https,metrics,Grafana-alt
-32168,http,ai,CodeProject.AI
-8123,https,home,Home Assistant
+3306,tcp,database,MySQL
+3334,http,3dprint,OctoPrint
+4200,http,dev,Angular Dev
+5000,http,web,Flask/Docker Registry
+5001,https,web,Docker Registry (TLS)
+5380,http,network,Technitium DNS
+5432,tcp,database,PostgreSQL
 5601,https,search,Kibana
+6379,tcp,database,Redis
+7000,http,web,Generic Web
+8000,http,web,HTTP-alt
+8006,https,vm,Proxmox
+8007,https,backup,Proxmox Backup
+8080,http,web,HTTP-alt
+8081,http,web,HTTP-alt
+8086,http,database,InfluxDB
+8090,http,web,HTTP-alt
+8096,http,media,Jellyfin
+8123,https,home,Home Assistant
+8443,https,web,HTTPS-alt
+8888,http,web,Jupyter/HTTP-alt
+9000,https,docker,Portainer
+9090,http,metrics,Prometheus
+9100,http,metrics,Node Exporter
+9187,http,metrics,SNMP Exporter
 9200,http,search,Elasticsearch
+9443,https,web,HTTPS-alt
+9981,http,media,TVHeadend
+10000,https,admin,Webmin
+11434,http,ai,Ollama
+19999,http,metrics,Netdata
+32168,http,ai,CodeProject.AI
+32400,https,media,Plex

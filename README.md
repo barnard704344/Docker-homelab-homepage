@@ -6,7 +6,8 @@ A self-hosted homepage that automatically discovers services on your network usi
 
 ### 🔍 **Automatic Network Discovery**
 - Scans your network subnet using nmap to discover running services
-- Detects 40+ common service ports (HTTP, HTTPS, SSH, DNS, media servers, etc.)
+- Configurable port scanning via `ports.map` file - easily add/remove ports
+- Detects 40+ common service ports by default (HTTP, HTTPS, SSH, DNS, media servers, etc.)
 - Real-time service status checking
 - Automatic protocol detection (HTTP/HTTPS/TCP/SSH)
 
@@ -51,8 +52,26 @@ bash setup.sh
 
 ## Configuration
 
+### Port Scanning Customization
+The scanner uses the `ports.map` file to determine which ports to scan. You can customize this by editing the CSV file:
+
+```csv
+# port,scheme,tag,desc
+80,http,web,HTTP
+81,http,web,NPM
+443,https,web,HTTPS
+# Add your custom ports here...
+```
+
+- **port**: Port number to scan
+- **scheme**: Protocol (http/https/tcp/ssh/ftp/dns)
+- **tag**: Service category (web/admin/database/docker/media/etc.)
+- **desc**: Human-readable description
+
+The scanner will automatically use ports defined in `ports.map`. If the file is missing or corrupted, it falls back to a hardcoded list.
+
 ### Custom Ports
-Add custom ports via the setup interface.
+You can also add additional custom ports via the setup interface, which supplements the `ports.map` configuration.
 
 ### Service Categories
 Categories are automatically created and can be customized via the web interface.
@@ -87,7 +106,7 @@ Docker-homelab-homepage/
 ├── start.sh               # Container startup script
 ├── scan.sh                # Network scanning logic
 ├── parse-scan.sh          # Scan result parser
-├── ports.map              # Default port definitions
+├── ports.map              # Port scanning configuration (CSV format)
 ├── debug.php              # Debug utilities
 ├── run-scan.php           # Scan trigger endpoint
 ├── site/                  # Web interface files

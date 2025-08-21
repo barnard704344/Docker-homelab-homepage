@@ -42,14 +42,24 @@ for NET in ${SUBNETS}; do
     echo "Starting nmap scan..."
   } >> "${OUTFILE}"
 
-  # Fast homelab scan targeting common service ports
-  # Use -T4 (aggressive timing) with specific ports for typical homelab services
-  # Common homelab ports: web (80,443,8080,8443,3000,5000,8000,9000), 
-  # management (8006,19999,9090,3001), AI/ML (11434), Code (8443,32168), 
-  # Docker (2375,2376), 3D printing (3334), media (8096,32400,9981), 
-  # monitoring (3001,8086,9090,9100,9187,19999), NAS/backup (5000,5001,8007,8080), 
-  # DNS (53,5380), databases, ssh, etc.
-  HOMELAB_PORTS="21,22,23,25,53,80,110,143,443,993,995,1433,2375,2376,3000,3001,3306,3334,4200,5000,5001,5380,5432,6379,7000,8000,8006,8007,8080,8081,8086,8090,8096,8443,8888,9000,9090,9100,9187,9443,9981,10000,11434,19999,32168,32400"
+  # Load ports from ports.map file, with fallback to hardcoded list
+  PORTS_MAP_FILE="/app/ports.map"
+  if [[ -f "$PORTS_MAP_FILE" ]]; then
+    echo "Loading ports from $PORTS_MAP_FILE..." >> "${OUTFILE}"
+    # Extract port numbers from CSV file (skip comments and header)
+    HOMELAB_PORTS=$(grep -v '^#' "$PORTS_MAP_FILE" | grep -v '^port,' | cut -d',' -f1 | tr '\n' ',' | sed 's/,$//')
+    if [[ -n "$HOMELAB_PORTS" ]]; then
+      echo "Loaded ports from ports.map: $HOMELAB_PORTS" >> "${OUTFILE}"
+    else
+      echo "Warning: No ports found in ports.map, using fallback list" >> "${OUTFILE}"
+      # Fallback to hardcoded list if ports.map is empty or malformed
+      HOMELAB_PORTS="21,22,23,25,53,80,81,110,143,443,993,995,1433,2375,2376,3000,3001,3306,3334,4200,5000,5001,5380,5432,6379,7000,8000,8006,8007,8080,8081,8086,8090,8096,8443,8888,9000,9090,9100,9187,9443,9981,10000,11434,19999,32168,32400"
+    fi
+  else
+    echo "ports.map not found at $PORTS_MAP_FILE, using hardcoded fallback list" >> "${OUTFILE}"
+    # Fallback to hardcoded list if ports.map doesn't exist
+    HOMELAB_PORTS="21,22,23,25,53,80,81,110,143,443,993,995,1433,2375,2376,3000,3001,3306,3334,4200,5000,5001,5380,5432,6379,7000,8000,8006,8007,8080,8081,8086,8090,8096,8443,8888,9000,9090,9100,9187,9443,9981,10000,11434,19999,32168,32400"
+  fi
   
   # Load additional custom ports from setup page
   CUSTOM_PORTS_FILE="/var/www/site/data/custom-ports.json"
