@@ -181,12 +181,9 @@ for service_line in "${services[@]}"; do
             
             # Determine URL based on port and service
             case $port in
-                80|81) 
+                80) 
                     primary_url="http://$ip"
-                    if [[ $port != "80" ]]; then
-                        primary_url="http://$ip:$port"
-                    fi
-                    available_ports+=("$port:http://$ip$([ $port != "80" ] && echo ":$port")")
+                    available_ports+=("$port:http://$ip")
                     ;;
                 443) 
                     primary_url="https://$ip"
