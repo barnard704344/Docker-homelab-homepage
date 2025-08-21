@@ -305,19 +305,19 @@
         
         <!-- Additional Ports Management -->
         <div class="section">
-            <h2>🔍 Additional Scan Ports</h2>
-            <p>Add custom ports to include in the automatic network scanning. These will be added to the default homelab ports during discovery scans.</p>
+            <h2>🌐 Additional HTTP Ports</h2>
+            <p>Add custom HTTP ports to scan for web services. These ports will be treated as HTTP services and included in network discovery. Only add ports that serve web interfaces you want to access.</p>
             
             <div class="inline-form">
                 <div class="form-group">
-                    <label for="new-port">Add Port</label>
-                    <input type="number" id="new-port" placeholder="e.g., 8123, 1880, 4357" min="1" max="65535">
+                    <label for="new-port">HTTP Port</label>
+                    <input type="number" id="new-port" placeholder="e.g., 8123 (Home Assistant), 1880 (Node-RED)" min="1" max="65535">
                 </div>
                 <div class="form-group">
-                    <label for="port-description">Description (optional)</label>
-                    <input type="text" id="port-description" placeholder="e.g., Home Assistant, Node-RED">
+                    <label for="port-description">Web Service Name (optional)</label>
+                    <input type="text" id="port-description" placeholder="e.g., Home Assistant, Node-RED, Custom Dashboard">
                 </div>
-                <button class="btn primary" onclick="addCustomPort()">➕ Add Port</button>
+                <button class="btn primary" onclick="addCustomPort()">➕ Add HTTP Port</button>
             </div>
             
             <div id="custom-ports-list" class="category-list">
@@ -447,8 +447,9 @@
                 div.className = 'category-item';
                 div.innerHTML = `
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <strong>Port ${portInfo.port}</strong>
+                        <strong>HTTP Port ${portInfo.port}</strong>
                         ${portInfo.description ? `<span style="color: var(--muted);">- ${escapeHtml(portInfo.description)}</span>` : ''}
+                        <span style="color: var(--accent); font-size: 0.9em;">(http://host:${portInfo.port})</span>
                     </div>
                     <button class="delete-btn" onclick="deleteCustomPort(${index})">🗑️ Remove</button>
                 `;
@@ -456,7 +457,7 @@
             });
             
             if (customPorts.length === 0) {
-                container.innerHTML = '<p style="color: var(--muted); text-align: center; padding: 20px;">No custom ports added yet. Add ports above to extend the default scanning range.</p>';
+                container.innerHTML = '<p style="color: var(--muted); text-align: center; padding: 20px;">No custom HTTP ports added yet. Add HTTP ports above to discover additional web services during network scanning.</p>';
             }
         }
         
@@ -611,20 +612,20 @@
             const description = descInput.value.trim();
             
             if (!port || port < 1 || port > 65535) {
-                showStatus('Please enter a valid port number (1-65535)', 'error');
+                showStatus('Please enter a valid HTTP port number (1-65535)', 'error');
                 return;
             }
             
             // Check if port already exists
             if (customPorts.some(p => p.port === port)) {
-                showStatus('Port already exists in custom ports list', 'error');
+                showStatus('HTTP port already exists in custom ports list', 'error');
                 return;
             }
             
             // Check if port is already in default homelab ports
             const defaultPorts = [21,22,23,25,53,80,110,143,443,993,995,1433,2375,2376,3000,3001,3306,3334,4200,5000,5001,5380,5432,6379,7000,8000,8006,8007,8080,8081,8086,8090,8096,8443,8888,9000,9090,9100,9187,9443,9981,10000,11434,19999,32168,32400];
             if (defaultPorts.includes(port)) {
-                showStatus(`Port ${port} is already included in the default homelab port scan`, 'error');
+                showStatus(`HTTP port ${port} is already included in the default homelab port scan`, 'error');
                 return;
             }
             
@@ -649,16 +650,16 @@
                 portInput.value = '';
                 descInput.value = '';
                 renderCustomPorts();
-                showStatus(`Port ${port} added successfully`, 'success');
+                showStatus(`HTTP port ${port} added successfully and will be scanned as a web service`, 'success');
             } catch (error) {
                 customPorts.pop(); // Remove the port we just added
-                showStatus('Failed to save custom port: ' + error.message, 'error');
+                showStatus('Failed to save custom HTTP port: ' + error.message, 'error');
             }
         }
         
         // Delete custom port
         async function deleteCustomPort(index) {
-            if (confirm('Are you sure you want to remove this port from the scan list?')) {
+            if (confirm('Are you sure you want to remove this HTTP port from the scan list?')) {
                 const removedPort = customPorts[index];
                 customPorts.splice(index, 1);
                 
@@ -677,10 +678,10 @@
                     }
                     
                     renderCustomPorts();
-                    showStatus(`Port ${removedPort.port} removed successfully`, 'success');
+                    showStatus(`HTTP port ${removedPort.port} removed successfully`, 'success');
                 } catch (error) {
                     customPorts.splice(index, 0, removedPort); // Restore the port
-                    showStatus('Failed to remove port: ' + error.message, 'error');
+                    showStatus('Failed to remove HTTP port: ' + error.message, 'error');
                 }
             }
         }
