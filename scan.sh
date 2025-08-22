@@ -9,11 +9,15 @@ SUBNETS="${SUBNETS:-192.168.1.0/24}"
 
 # Use persistent data directory that survives container rebuilds
 OUTDIR="/var/www/site/data/scan"
+PROGRESS_FILE="/var/www/site/data/scan-progress.json"
 TIMESTAMP="$(date -Iseconds)"
 mkdir -p "${OUTDIR}"
 
 OUTFILE="${OUTDIR}/last-scan.txt"
 : > "${OUTFILE}"
+
+# Initialize progress tracking
+echo '{"status":"starting","progress":0,"message":"Initializing scan...","timestamp":"'$TIMESTAMP'"}' > "$PROGRESS_FILE"
 
 {
   echo "=== Homelab Homepage Scan ==="
@@ -25,7 +29,15 @@ OUTFILE="${OUTDIR}/last-scan.txt"
 } >> "${OUTFILE}"
 
 # Scan each subnet in the list
+SUBNET_COUNT=$(echo $SUBNETS | wc -w)
+CURRENT_SUBNET=0
+
 for NET in ${SUBNETS}; do
+  CURRENT_SUBNET=$((CURRENT_SUBNET + 1))
+  PROGRESS=$((CURRENT_SUBNET * 100 / SUBNET_COUNT / 2))  # First half is scanning
+  
+  echo '{"status":"scanning","progress":'$PROGRESS',"message":"Scanning subnet '$NET' ('$CURRENT_SUBNET'/'$SUBNET_COUNT')","timestamp":"'$(date -Iseconds)'"}' > "$PROGRESS_FILE"
+  
   {
     echo
     echo ">>> Subnet: ${NET}"
@@ -92,6 +104,9 @@ for NET in ${SUBNETS}; do
   } >> "${OUTFILE}"
 done
 
+# Update progress to parsing phase
+echo '{"status":"parsing","progress":75,"message":"Parsing scan results...","timestamp":"'$(date -Iseconds)'"}' > "$PROGRESS_FILE"
+
 echo >> "${OUTFILE}"
 echo "Done." >> "${OUTFILE}"
 
@@ -137,3 +152,6 @@ else
     echo "[scanner] WARNING: parse-scan.sh not found at /usr/local/bin/"
     ls -la /usr/local/bin/parse* /app/ 2>/dev/null || true
 fi
+
+# Mark scan as completed
+echo '{"status":"completed","progress":100,"message":"Scan completed successfully","timestamp":"'$(date -Iseconds)'"}' > "$PROGRESS_FILE"

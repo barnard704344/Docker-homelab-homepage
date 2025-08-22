@@ -866,7 +866,7 @@
     });
 
     triggerScanBtn.addEventListener('click', async () => {
-      triggerScanBtn.textContent = '⏳ Scanning...';
+      triggerScanBtn.textContent = '⏳ Starting...';
       triggerScanBtn.disabled = true;
       
       try {
@@ -879,15 +879,9 @@
         
         if (response.ok) {
           const result = await response.json();
-          triggerScanBtn.textContent = '✅ Scan Started';
           
-          // Auto-refresh after a short delay to show new services
-          setTimeout(async () => {
-            await loadDynamicLinks();
-            render();
-            triggerScanBtn.textContent = '🔍 Trigger Scan';
-            triggerScanBtn.disabled = false;
-          }, 3000);
+          // Start progress monitoring
+          monitorScanProgress();
         } else {
           throw new Error('Scan failed');
         }
@@ -900,6 +894,50 @@
         }, 2000);
       }
     });
+
+    // Monitor scan progress
+    let progressInterval;
+    
+    async function monitorScanProgress() {
+      progressInterval = setInterval(async () => {
+        try {
+          const response = await fetch('/scan-progress.php', {
+            method: 'GET',
+            cache: 'no-cache'
+          });
+          
+          if (response.ok) {
+            const progress = await response.json();
+            
+            if (progress.status === 'idle' || progress.status === 'error') {
+              // No scan running
+              clearInterval(progressInterval);
+              triggerScanBtn.textContent = '🔍 Trigger Scan';
+              triggerScanBtn.disabled = false;
+            } else if (progress.status === 'completed') {
+              // Scan completed
+              clearInterval(progressInterval);
+              triggerScanBtn.textContent = '✅ Scan Complete';
+              
+              // Refresh services and reset button
+              setTimeout(async () => {
+                await loadDynamicLinks();
+                render();
+                triggerScanBtn.textContent = '🔍 Trigger Scan';
+                triggerScanBtn.disabled = false;
+              }, 2000);
+            } else {
+              // Scan in progress
+              const percentage = Math.round(progress.progress || 0);
+              triggerScanBtn.textContent = `⏳ ${percentage}% - ${progress.message || 'Scanning...'}`;
+            }
+          }
+        } catch (error) {
+          console.error('Progress check error:', error);
+          // Don't clear interval on network errors, just log them
+        }
+      }, 1000); // Check progress every second
+    }
 
     // --- Check scan status periodically
     async function checkScanStatus() {
