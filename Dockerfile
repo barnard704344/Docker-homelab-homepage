@@ -21,6 +21,7 @@ COPY start.sh /usr/local/bin/start.sh
 COPY dns-diagnostic.sh /usr/local/bin/dns-diagnostic.sh
 COPY refresh-dns.sh /usr/local/bin/refresh-dns.sh
 COPY cleanup-service.sh /usr/local/bin/cleanup-service.sh
+COPY ports.map /app/ports.map
 COPY run-scan.php /var/www/site/run-scan.php
 COPY debug.php /var/www/site/debug.php
 

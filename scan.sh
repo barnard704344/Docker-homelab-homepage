@@ -82,7 +82,7 @@ for NET in ${SUBNETS}; do
     fi
   fi
   
-  if ! timeout 120 nmap -T4 -p "${HOMELAB_PORTS}" -Pn -R -sS --host-timeout 20s --max-rtt-timeout 1s --max-retries 2 "${NET}" >> "${OUTFILE}" 2>&1; then
+  if ! timeout 120 nmap -T4 -p "${HOMELAB_PORTS}" -Pn -R -sT --host-timeout 20s --max-rtt-timeout 1s --max-retries 2 "${NET}" >> "${OUTFILE}" 2>&1; then
     echo "[!] nmap failed or timed out for ${NET}" >> "${OUTFILE}"
   fi
   
