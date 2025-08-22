@@ -290,6 +290,7 @@ try {
                 }
                 
                 $deleted = false;
+                $cleanupResults = [];
                 
                 // Remove from main services.json
                 $servicesFile = '/var/www/site/services.json';
@@ -302,6 +303,7 @@ try {
                     if (count($services) < $originalCount) {
                         file_put_contents($servicesFile, json_encode(array_values($services), JSON_PRETTY_PRINT));
                         $deleted = true;
+                        $cleanupResults[] = "Removed from services.json";
                     }
                 }
                 
@@ -316,11 +318,44 @@ try {
                     if (count($services) < $originalCount) {
                         file_put_contents($dataServicesFile, json_encode(array_values($services), JSON_PRETTY_PRINT));
                         $deleted = true;
+                        $cleanupResults[] = "Removed from data/services.json";
                     }
                 }
                 
+                // Remove from service-assignments.json (category assignments)
+                $assignmentsFile = '/var/www/site/data/service-assignments.json';
+                if (file_exists($assignmentsFile)) {
+                    $assignments = json_decode(file_get_contents($assignmentsFile), true) ?: [];
+                    if (isset($assignments[$serviceName])) {
+                        unset($assignments[$serviceName]);
+                        file_put_contents($assignmentsFile, json_encode($assignments, JSON_PRETTY_PRINT));
+                        $cleanupResults[] = "Removed category assignment";
+                    }
+                }
+                
+                // Clear scan cache to force fresh discovery on next scan
+                $scanFiles = [
+                    '/var/www/site/data/scan/last-scan.txt',
+                    '/var/www/site/scan.txt',
+                    '/var/www/site/data/scan.txt'
+                ];
+                
+                foreach ($scanFiles as $scanFile) {
+                    if (file_exists($scanFile)) {
+                        unlink($scanFile);
+                        $cleanupResults[] = "Cleared scan cache: " . basename($scanFile);
+                    }
+                }
+                
+                // Log the complete deletion
+                error_log("[SERVICE DELETE] Complete cleanup of '$serviceName': " . implode(', ', $cleanupResults));
+                
                 if ($deleted) {
-                    echo json_encode(['success' => true, 'message' => "Service '$serviceName' deleted"]);
+                    echo json_encode([
+                        'success' => true, 
+                        'message' => "Service '$serviceName' completely removed",
+                        'cleanup_details' => $cleanupResults
+                    ]);
                 } else {
                     echo json_encode(['success' => false, 'error' => "Service '$serviceName' not found"]);
                 }

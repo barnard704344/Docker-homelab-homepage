@@ -20,11 +20,12 @@ COPY parse-scan.sh /usr/local/bin/parse-scan.sh
 COPY start.sh /usr/local/bin/start.sh
 COPY dns-diagnostic.sh /usr/local/bin/dns-diagnostic.sh
 COPY refresh-dns.sh /usr/local/bin/refresh-dns.sh
+COPY cleanup-service.sh /usr/local/bin/cleanup-service.sh
 COPY run-scan.php /var/www/site/run-scan.php
 COPY debug.php /var/www/site/debug.php
 
 # Make scripts executable and create symlinks for easier access
-RUN chmod +x /usr/local/bin/scan.sh /usr/local/bin/parse-scan.sh /usr/local/bin/start.sh /usr/local/bin/dns-diagnostic.sh /usr/local/bin/refresh-dns.sh && \
+RUN chmod +x /usr/local/bin/scan.sh /usr/local/bin/parse-scan.sh /usr/local/bin/start.sh /usr/local/bin/dns-diagnostic.sh /usr/local/bin/refresh-dns.sh /usr/local/bin/cleanup-service.sh && \
     ln -sf /usr/local/bin/scan.sh /opt/scan.sh && \
     chmod +x /var/www/site/run-scan.php /var/www/site/debug.php || true
 
