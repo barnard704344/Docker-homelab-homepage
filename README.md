@@ -46,7 +46,7 @@ bash setup.sh
 
 ### 3. First-Time Setup
 1. Visit the setup page to configure categories and custom ports
-2. The container automatically scans on startup, or trigger manually with: `docker exec homelab-homepage /usr/local/bin/scan.sh`
+2. The container automatically scans on startup, or trigger manually with: `docker exec homepage /usr/local/bin/scan.sh`
 3. Assign discovered services to categories
 4. Customize service settings as needed
 
@@ -144,9 +144,9 @@ Docker-homelab-homepage/
 # Go to homepage → Delete service → Trigger new scan
 
 # Option 2: Manual diagnostic and cleanup
-docker exec homelab-homepage /usr/local/bin/dns-diagnostic.sh 192.168.1.79
-docker exec homelab-homepage /usr/local/bin/cleanup-service.sh "old-hostname"
-docker exec homelab-homepage /usr/local/bin/refresh-dns.sh
+docker exec homepage /usr/local/bin/dns-diagnostic.sh 192.168.1.79
+docker exec homepage /usr/local/bin/cleanup-service.sh "old-hostname"
+docker exec homepage /usr/local/bin/refresh-dns.sh
 ```
 
 #### Problem: Service not being discovered
@@ -168,7 +168,7 @@ docker exec homelab-homepage /usr/local/bin/refresh-dns.sh
 
 **Solution**: Nuclear option (clears all service data)
 ```bash
-docker exec homelab-homepage /usr/local/bin/cleanup-service.sh all --nuclear
+docker exec homepage /usr/local/bin/cleanup-service.sh all --nuclear
 # Then visit setup page to trigger fresh scan
 ```
 
@@ -180,13 +180,13 @@ docker exec homelab-homepage /usr/local/bin/cleanup-service.sh all --nuclear
 **Solutions**:
 ```bash
 # Test DNS resolution
-docker exec homelab-homepage /usr/local/bin/dns-diagnostic.sh 192.168.1.79
+docker exec homepage /usr/local/bin/dns-diagnostic.sh 192.168.1.79
 
 # Clear DNS cache and refresh
-docker exec homelab-homepage /usr/local/bin/refresh-dns.sh
+docker exec homepage /usr/local/bin/refresh-dns.sh
 
 # Restart container for complete DNS reset
-docker restart homelab-homepage
+docker restart homepage
 ```
 
 #### Problem: Services show IP addresses instead of hostnames
@@ -196,32 +196,32 @@ docker restart homelab-homepage
 1. Ensure your DNS server has reverse DNS (PTR records) configured
 2. Check container can reach your DNS server:
 ```bash
-docker exec homelab-homepage cat /etc/resolv.conf
+docker exec homepage cat /etc/resolv.conf
 ```
 3. Force reverse DNS lookup:
 ```bash
-docker exec homelab-homepage /usr/local/bin/refresh-dns.sh
+docker exec homepage /usr/local/bin/refresh-dns.sh
 ```
 
 ### Manual Cleanup Commands
 
 | Issue | Command |
 |-------|---------|
-| One service has wrong data | `docker exec homelab-homepage /usr/local/bin/cleanup-service.sh "service-name"` |
-| DNS cache issues | `docker exec homelab-homepage /usr/local/bin/refresh-dns.sh` |
-| Start completely fresh | `docker exec homelab-homepage /usr/local/bin/cleanup-service.sh all --nuclear` |
-| Troubleshoot DNS for IP | `docker exec homelab-homepage /usr/local/bin/dns-diagnostic.sh IP-ADDRESS` |
-| Force new scan | `docker exec homelab-homepage /usr/local/bin/scan.sh` |
+| One service has wrong data | `docker exec homepage /usr/local/bin/cleanup-service.sh "service-name"` |
+| DNS cache issues | `docker exec homepage /usr/local/bin/refresh-dns.sh` |
+| Start completely fresh | `docker exec homepage /usr/local/bin/cleanup-service.sh all --nuclear` |
+| Troubleshoot DNS for IP | `docker exec homepage /usr/local/bin/dns-diagnostic.sh IP-ADDRESS` |
+| Force new scan | `docker exec homepage /usr/local/bin/scan.sh` |
 
 ### Container Issues
 
 #### Problem: Scans not working or permissions errors
 ```bash
 # Check container logs
-docker logs homelab-homepage
+docker logs homepage
 
 # Restart container
-docker restart homelab-homepage
+docker restart homepage
 
 # Rebuild if needed
 cd Docker-homelab-homepage
@@ -231,13 +231,13 @@ bash setup.sh
 #### Problem: Web interface not loading
 ```bash
 # Check if container is running
-docker ps | grep homelab-homepage
+docker ps | grep homepage
 
 # Check port binding
-docker port homelab-homepage
+docker port homepage
 
 # Restart container
-docker restart homelab-homepage
+docker restart homepage
 ```
 
 ## Updating
@@ -246,8 +246,8 @@ If you encounter git errors or `git pull` fails, you can rebuild the container f
 
 ```bash
 # Stop and remove the existing container
-docker stop homelab-homepage
-docker rm homelab-homepage
+docker stop homepage
+docker rm homepage
 
 # Remove the old image (optional but recommended)
 docker rmi homelab-homepage
