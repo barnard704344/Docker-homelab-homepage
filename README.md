@@ -129,7 +129,116 @@ Docker-homelab-homepage/
   - `action=save_assignments` - Save service category assignments
   - `action=save_categories` - Save category definitions
   - `action=save_custom_ports` - Save custom scanning ports
-  - `action=delete_service` - Permanently delete a service
+  - `action=delete_service` - Permanently delete a service (with complete cleanup)
+
+## Troubleshooting
+
+### Service Discovery Issues
+
+#### Problem: Service shows old/incorrect hostname
+**Cause**: DNS caching or stale service data
+
+**Solutions**:
+```bash
+# Option 1: Delete service via web interface (automatic cleanup)
+# Go to homepage → Delete service → Trigger new scan
+
+# Option 2: Manual diagnostic and cleanup
+docker exec homelab-homepage /usr/local/bin/dns-diagnostic.sh 192.168.1.79
+docker exec homelab-homepage /usr/local/bin/cleanup-service.sh "old-hostname"
+docker exec homelab-homepage /usr/local/bin/refresh-dns.sh
+```
+
+#### Problem: Service not being discovered
+**Cause**: Port not in scan list or network connectivity issues
+
+**Solutions**:
+```bash
+# Check if port is in ports.map
+cat ports.map | grep "PORT_NUMBER"
+
+# Add missing port to ports.map or via web interface setup page
+
+# Force fresh scan
+docker exec homelab-homepage /usr/local/bin/refresh-dns.sh
+```
+
+#### Problem: Multiple services have incorrect data
+**Cause**: Widespread caching or configuration issues
+
+**Solution**: Nuclear option (clears all service data)
+```bash
+docker exec homelab-homepage /usr/local/bin/cleanup-service.sh all --nuclear
+# Then visit setup page to trigger fresh scan
+```
+
+### DNS Resolution Issues
+
+#### Problem: Container not seeing DNS updates
+**Cause**: Docker DNS caching or container isolation
+
+**Solutions**:
+```bash
+# Test DNS resolution
+docker exec homelab-homepage /usr/local/bin/dns-diagnostic.sh 192.168.1.79
+
+# Clear DNS cache and refresh
+docker exec homelab-homepage /usr/local/bin/refresh-dns.sh
+
+# Restart container for complete DNS reset
+docker restart homelab-homepage
+```
+
+#### Problem: Services show IP addresses instead of hostnames
+**Cause**: Reverse DNS not configured or not accessible
+
+**Solutions**:
+1. Ensure your DNS server has reverse DNS (PTR records) configured
+2. Check container can reach your DNS server:
+```bash
+docker exec homelab-homepage cat /etc/resolv.conf
+```
+3. Force reverse DNS lookup:
+```bash
+docker exec homelab-homepage /usr/local/bin/refresh-dns.sh
+```
+
+### Manual Cleanup Commands
+
+| Issue | Command |
+|-------|---------|
+| One service has wrong data | `docker exec homelab-homepage /usr/local/bin/cleanup-service.sh "service-name"` |
+| DNS cache issues | `docker exec homelab-homepage /usr/local/bin/refresh-dns.sh` |
+| Start completely fresh | `docker exec homelab-homepage /usr/local/bin/cleanup-service.sh all --nuclear` |
+| Troubleshoot DNS for IP | `docker exec homelab-homepage /usr/local/bin/dns-diagnostic.sh IP-ADDRESS` |
+| Force new scan | `docker exec homelab-homepage /usr/local/bin/scan.sh` |
+
+### Container Issues
+
+#### Problem: Scans not working or permissions errors
+```bash
+# Check container logs
+docker logs homelab-homepage
+
+# Restart container
+docker restart homelab-homepage
+
+# Rebuild if needed
+cd Docker-homelab-homepage
+bash setup.sh
+```
+
+#### Problem: Web interface not loading
+```bash
+# Check if container is running
+docker ps | grep homelab-homepage
+
+# Check port binding
+docker port homelab-homepage
+
+# Restart container
+docker restart homelab-homepage
+```
 
 ## Updating
 
