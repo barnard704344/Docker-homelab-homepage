@@ -142,7 +142,7 @@ done
 
 echo
 echo "🔄 Next steps:"
-echo "1. Run a fresh scan: docker exec homelab-homepage /usr/local/bin/scan.sh"
+echo "1. Run a fresh scan: docker exec homepage /usr/local/bin/scan.sh"
 echo "2. Or trigger via web interface: http://your-server/setup.html"
 echo "3. The service will be rediscovered with fresh DNS resolution"
 

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 IMAGE_NAME="homelab-homepage"
-CONTAINER_NAME="homelab-homepage"
+CONTAINER_NAME="homepage"
 
 echo "[*] Building image '${IMAGE_NAME}'..."
 docker build -t "${IMAGE_NAME}" .

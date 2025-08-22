@@ -62,7 +62,17 @@ echo "Running: nmap -sn -R $IP"
 nmap -sn -R "$IP" 2>/dev/null || echo "nmap DNS test failed"
 echo
 
-echo "6. Current services.json entries for this IP:"
+echo "6. Checking /etc/hosts for static entries:"
+echo "Local hosts file entries:"
+grep -i "$IP\|$(echo $IP | cut -d. -f4)" /etc/hosts 2>/dev/null || echo "No matching entries in /etc/hosts"
+echo
+
+echo "7. Testing container's system resolver:"
+echo "getent hosts $IP:"
+getent hosts "$IP" 2>/dev/null || echo "No getent resolution"
+echo
+
+echo "8. Current services.json entries for this IP:"
 if [[ -f "/var/www/site/data/services.json" ]]; then
     grep -i "$IP" /var/www/site/data/services.json || echo "IP not found in services.json"
 else
@@ -72,7 +82,7 @@ echo
 
 echo "=== Recommendations ==="
 echo "If you see the old hostname above:"
-echo "1. Clear DNS cache in the container: docker exec homelab-homepage sh -c 'echo > /etc/hosts'"
-echo "2. Restart the container: docker restart homelab-homepage"
+echo "1. Clear DNS cache in the container: docker exec homepage sh -c 'echo > /etc/hosts'"
+echo "2. Restart the container: docker restart homepage"
 echo "3. Delete the service from the web interface and re-scan"
 echo "4. Check your DNS server is properly configured"

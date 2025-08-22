@@ -134,13 +134,10 @@ docker exec homepage /usr/local/bin/refresh-dns.sh
 
 **Solutions**:
 ```bash
-# Check if port is in ports.map
-cat ports.map | grep "PORT_NUMBER"
-
 # Add missing port to ports.map or via web interface setup page
 
 # Force fresh scan
-docker exec homelab-homepage /usr/local/bin/refresh-dns.sh
+docker exec homepage /usr/local/bin/refresh-dns.sh
 ```
 
 #### Problem: Multiple services have incorrect data
