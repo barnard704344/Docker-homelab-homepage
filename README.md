@@ -76,26 +76,6 @@ You can also add additional custom ports via the setup interface, which suppleme
 ### Service Categories
 Categories are automatically created and can be customized via the web interface.
 
-## Default Port Detection
-
-The scanner automatically detects these services:
-
-| Ports | Service Type | Examples |
-|-------|--------------|----------|
-| 22 | SSH | OpenSSH |
-| 53 | DNS | Pi-hole, AdGuard, Technitium |
-| 80, 8080, 8000, 8008, 8090 | HTTP | Web servers, dashboards |
-| 443, 8443, 9443 | HTTPS | Secure web services |
-| 139, 445 | SMB/CIFS | File shares, NAS |
-| 993, 995 | Secure Email | IMAPS, POP3S |
-| 3389 | RDP | Windows Remote Desktop |
-| 5432 | PostgreSQL | Database |
-| 3306 | MySQL/MariaDB | Database |
-| 6379 | Redis | Cache/Database |
-| 8096 | Jellyfin | Media Server |
-| 32400 | Plex | Media Server |
-| And many more... | | |
-
 ## File Structure
 
 ```
