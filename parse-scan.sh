@@ -336,8 +336,65 @@ for service_line in "${services[@]}"; do
     json_services+=("$json_entry")
 done
 
-# Write JSON output
-json_output="[$(IFS=','; echo "${json_services[*]}")]"
+# Write JSON output with merge logic
+echo "[discovery] Loading existing services for merge..."
+
+# Load existing services if file exists
+existing_services=()
+if [[ -f "${SERVICES_FILE}" ]] && [[ -s "${SERVICES_FILE}" ]]; then
+    if command -v jq >/dev/null 2>&1; then
+        # Use jq to read existing services
+        while IFS= read -r service; do
+            if [[ -n "$service" ]]; then
+                existing_services+=("$service")
+            fi
+        done < <(jq -c '.[]' "${SERVICES_FILE}" 2>/dev/null || echo "")
+        echo "[discovery] Loaded ${#existing_services[@]} existing services"
+    fi
+fi
+
+# Create associative array of new services by title for quick lookup
+declare -A new_services_by_title
+for service in "${json_services[@]}"; do
+    if [[ -n "$service" ]]; then
+        title=$(echo "$service" | jq -r '.title' 2>/dev/null || echo "")
+        if [[ -n "$title" ]]; then
+            new_services_by_title["$title"]="$service"
+        fi
+    fi
+done
+
+# Merge logic: update existing, keep offline, add new
+merged_services=()
+
+# First, process existing services
+for existing_service in "${existing_services[@]}"; do
+    if [[ -n "$existing_service" ]]; then
+        title=$(echo "$existing_service" | jq -r '.title' 2>/dev/null || echo "")
+        if [[ -n "$title" ]]; then
+            if [[ -n "${new_services_by_title[$title]}" ]]; then
+                # Service found in current scan - update it
+                echo "[discovery] Updating existing service: $title"
+                merged_services+=("${new_services_by_title[$title]}")
+                # Remove from new services to avoid duplicates
+                unset new_services_by_title["$title"]
+            else
+                # Service not in current scan - keep existing (offline)
+                echo "[discovery] Keeping offline service: $title"
+                merged_services+=("$existing_service")
+            fi
+        fi
+    fi
+done
+
+# Add any new services that weren't in existing services
+for title in "${!new_services_by_title[@]}"; do
+    echo "[discovery] Adding new service: $title"
+    merged_services+=("${new_services_by_title[$title]}")
+done
+
+# Generate final JSON
+json_output="[$(IFS=','; echo "${merged_services[*]}")]"
 
 echo "$json_output" | jq '.' > "${SERVICES_FILE}" 2>/dev/null || {
     echo "[discovery] WARNING: jq failed, writing raw JSON"
@@ -349,6 +406,6 @@ echo "$json_output" | jq '.' > "${SERVICES_FILE_COMPAT}" 2>/dev/null || {
     echo "$json_output" > "${SERVICES_FILE_COMPAT}"
 }
 
-echo "[discovery] ✓ Generated services file with ${#json_services[@]} services"
+echo "[discovery] ✓ Merged services: ${#merged_services[@]} total (${#json_services[@]} from current scan)"
 echo "[discovery] ✓ Output written to: ${SERVICES_FILE}"
 echo "[discovery] ✓ Compatibility file: ${SERVICES_FILE_COMPAT}"
