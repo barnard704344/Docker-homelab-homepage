@@ -207,30 +207,6 @@ Body: {"action": "save_categories", "categories": {...}}
 - Checks file permissions and ownership
 - Provides detailed debugging output for save operations
 
-#### `/site/test-parser.php`
-**Purpose**: Manual testing tool for the scan parser
-**Method**: GET
-**Response Format**: Plain text
-
-**Functionality**:
-- Validates scan file existence and readability
-- Checks parser script availability and permissions
-- Tests data directory write capabilities
-- Executes parser and reports results
-- Validates services.json creation and content
-
-#### `/site/write-test.php`
-**Purpose**: Tests write permissions from PHP perspective
-**Method**: GET
-**Response Format**: Plain text
-
-**Functionality**:
-- Tests directory existence and permissions
-- Checks file ownership and group information
-- Performs actual write tests
-- Compares with /tmp write capabilities
-- Reports PHP process user/group information
-
 #### `/site/fix-permissions.php`
 **Purpose**: Attempts to fix data directory permissions
 **Method**: GET
@@ -452,10 +428,6 @@ Body: {"action": "save_categories", "categories": {...}}
 **Purpose**: Quick system fixes and adjustments
 **Language**: Bash
 
-#### `test-container.sh`
-**Purpose**: Container functionality testing
-**Language**: Bash
-
 ---
 
 ## Usage Examples
@@ -506,9 +478,6 @@ curl -X POST http://localhost/site/pins.php \
 ```bash
 # Get comprehensive debug information
 curl http://localhost/debug.php | jq .
-
-# Test write permissions
-curl http://localhost/site/write-test.php
 
 # Fix permissions issues
 curl http://localhost/site/fix-permissions.php
