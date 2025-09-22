@@ -14,6 +14,8 @@
       --card-bg: #1a1a2e;
       --card-hover: #252547;
       --warning: #ff6b35;
+      --missing-bg: rgba(255, 107, 53, 0.12);
+      --missing-border: rgba(255, 107, 53, 0.5);
       --muted: #888;
     }
     
@@ -106,6 +108,34 @@
     
     .card:hover {
       background: var(--card-hover);
+    }
+
+    .card.missing {
+      border-left: 4px solid var(--missing-border);
+      background: var(--missing-bg);
+    }
+
+    .card.missing:hover {
+      background: rgba(255, 107, 53, 0.18);
+    }
+
+    .missing-banner {
+      color: var(--warning);
+      font-size: 13px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .missing-banner::before {
+      content: '⚠️';
+    }
+
+    .missing-info {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
     }
     
     .card-header {
@@ -360,12 +390,31 @@
           desc: x.desc ? String(x.desc) : '',
           tags: Array.isArray(x.tags) ? x.tags.map(String) : [],
           statusPath: x.statusPath ? String(x.statusPath) : '/',
+          status: typeof x.status === 'string' ? x.status : '',
+          lastSeen: typeof x.last_seen === 'string' ? x.last_seen : (typeof x.lastSeen === 'string' ? x.lastSeen : ''),
+          missingSince: typeof x.missing_since === 'string' ? x.missing_since : (typeof x.missingSince === 'string' ? x.missingSince : ''),
           ports: Array.isArray(x.ports) ? x.ports.map(p => ({
             port: String(p.port),
             service: String(p.service),
             url: String(p.url)
           })) : []
         }));
+    }
+
+    function formatTimestamp(isoString) {
+      if (!isoString || typeof isoString !== 'string') {
+        return '';
+      }
+
+      const parsed = new Date(isoString);
+      if (Number.isNaN(parsed.getTime())) {
+        return isoString;
+      }
+
+      return parsed.toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      });
     }
 
     // --- Merge and dedupe links
@@ -464,12 +513,15 @@
     function createCard(link) {
       const card = document.createElement('div');
       card.className = 'card';
-      
+
       const isPinned = getPins().some(p => p.title === link.title);
       const faviconUrl = getFaviconUrl(link.url);
       const selectedPorts = getSelectedPorts();
       const selectedPort = selectedPorts[link.title];
-      
+      const tags = Array.isArray(link.tags) ? link.tags.map(tag => String(tag)) : [];
+      const isMissing = (link.status && link.status.toLowerCase() === 'missing') ||
+        tags.some(tag => String(tag).toLowerCase() === 'missing');
+
       // Apply stored port selection
       let displayUrl = link.url;
       if (selectedPort && link.ports) {
@@ -479,7 +531,12 @@
           displayUrl = portData.url;
         }
       }
-      
+
+      const missingSinceText = formatTimestamp(link.missingSince);
+      const lastSeenText = formatTimestamp(link.lastSeen);
+      const missingBanner = isMissing ? `<div class="missing-banner">Missing${missingSinceText ? ` since ${escapeHtml(missingSinceText)}` : ''}</div>` : '';
+      const missingInfo = isMissing && lastSeenText ? `<div class="missing-info">Last seen ${escapeHtml(lastSeenText)}</div>` : '';
+
       // Build ports section if available
       let portsHtml = '';
       if (link.ports && link.ports.length > 0) {
@@ -490,16 +547,18 @@
         }).join('');
         portsHtml = `<div class="ports-section">Ports: ${portButtons}</div>`;
       }
-      
+
       card.innerHTML = `
+        ${missingBanner}
         <div class="card-header">
           ${faviconUrl ? `<img src="${faviconUrl}" width="16" height="16" alt="" style="display: inline-block;" onerror="this.style.display='none'">` : '<span style="width:16px;height:16px;display:inline-block;"></span>'}
           <a href="${displayUrl}" class="card-title" target="_blank" rel="noopener">${escapeHtml(link.title)}</a>
-          <div class="status-dot" data-url="${displayUrl}" data-path="${link.statusPath}"></div>
+          <div class="status-dot${isMissing ? ' offline' : ''}" data-url="${displayUrl}" data-path="${link.statusPath}"${isMissing ? ' data-status="missing"' : ''}></div>
         </div>
+        ${missingInfo}
         ${portsHtml}
         <div class="card-meta">
-          ${link.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+          ${tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
         </div>
         <button class="delete-btn" data-title="${escapeHtml(link.title)}" title="Delete service">
           🗑️
@@ -508,7 +567,12 @@
           ${isPinned ? '📍' : '📌'}
         </button>
       `;
-      
+
+      if (isMissing) {
+        card.classList.add('missing');
+        card.dataset.status = 'missing';
+      }
+
       // Add pin button handler
       const pinBtn = card.querySelector('.pin-btn');
       pinBtn.addEventListener('click', (e) => {
@@ -810,7 +874,13 @@
     async function checkStatus(dot) {
       const url = dot.dataset.url;
       const path = dot.dataset.path || '/';
-      
+      const dotStatus = (dot.dataset.status || '').toLowerCase();
+
+      if (dotStatus === 'missing') {
+        dot.className = 'status-dot offline';
+        return;
+      }
+
       try {
         // For local files (starting with /), use a different approach
         if (url.startsWith('/')) {

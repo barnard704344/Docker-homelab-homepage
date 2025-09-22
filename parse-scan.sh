@@ -339,16 +339,111 @@ done
 # Write JSON output
 json_output="[$(IFS=','; echo "${json_services[*]}")]"
 
-echo "$json_output" | jq '.' > "${SERVICES_FILE}" 2>/dev/null || {
-    echo "[discovery] WARNING: jq failed, writing raw JSON"
-    echo "$json_output" > "${SERVICES_FILE}"
-}
+# Enrich with history information so missing services remain visible
+timestamp_utc="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+temp_current="$(mktemp)"
+echo "$json_output" > "$temp_current"
 
-# Also write compatibility file
-echo "$json_output" | jq '.' > "${SERVICES_FILE_COMPAT}" 2>/dev/null || {
-    echo "$json_output" > "${SERVICES_FILE_COMPAT}"
-}
+temp_combined="$(mktemp)"
 
-echo "[discovery] ✓ Generated services file with ${#json_services[@]} services"
+if command -v python3 >/dev/null 2>&1; then
+    if ! python3 - "$temp_current" "$SERVICES_FILE" "$timestamp_utc" <<'PY' > "$temp_combined"; then
+import json
+import sys
+from copy import deepcopy
+
+def load_services(path):
+    try:
+        with open(path, 'r', encoding='utf-8') as handle:
+            return json.load(handle)
+    except (FileNotFoundError, json.JSONDecodeError, PermissionError):
+        return []
+
+def clean_tags(tags, drop_missing=False):
+    seen = set()
+    cleaned = []
+    if isinstance(tags, list):
+        iterable = tags
+    elif tags:
+        iterable = [tags]
+    else:
+        iterable = []
+
+    for tag in iterable:
+        tag_str = str(tag)
+        if drop_missing and tag_str.lower() == 'missing':
+            continue
+        if tag_str not in seen:
+            seen.add(tag_str)
+            cleaned.append(tag_str)
+    return cleaned
+
+def main():
+    current_path, previous_path, timestamp = sys.argv[1:4]
+    current_services = load_services(current_path)
+    previous_services = load_services(previous_path)
+
+    current_titles = set()
+    for service in current_services:
+        title = service.get('title')
+        if not title:
+            continue
+        current_titles.add(title)
+        service['last_seen'] = timestamp
+        service.pop('missing_since', None)
+        service.pop('status', None)
+        service['tags'] = clean_tags(service.get('tags'), drop_missing=True)
+
+    missing_services = []
+    for service in previous_services:
+        title = service.get('title')
+        if not title or title in current_titles:
+            continue
+
+        entry = deepcopy(service)
+        entry['status'] = 'missing'
+        entry['tags'] = clean_tags(entry.get('tags'))
+        if 'missing' not in [tag.lower() for tag in entry['tags']]:
+            entry['tags'].append('missing')
+
+        missing_since = entry.get('missing_since')
+        if not isinstance(missing_since, str) or not missing_since.strip():
+            missing_since = timestamp
+        entry['missing_since'] = missing_since
+
+        last_seen = entry.get('last_seen')
+        if not isinstance(last_seen, str) or not last_seen.strip():
+            last_seen = missing_since
+        entry['last_seen'] = last_seen
+
+        missing_services.append(entry)
+
+    combined = current_services + missing_services
+    json.dump(combined, sys.stdout, ensure_ascii=False)
+
+if __name__ == '__main__':
+    main()
+PY
+        echo "[discovery] WARNING: Failed to process history, falling back to current scan only"
+        cp "$temp_current" "$temp_combined"
+    fi
+else
+    echo "[discovery] WARNING: python3 not available, history tracking disabled"
+    cp "$temp_current" "$temp_combined"
+fi
+
+# Format JSON output and write to files
+if command -v jq >/dev/null 2>&1; then
+    jq '.' "$temp_combined" > "${SERVICES_FILE}" 2>/dev/null || cp "$temp_combined" "${SERVICES_FILE}"
+    jq '.' "$temp_combined" > "${SERVICES_FILE_COMPAT}" 2>/dev/null || cp "$temp_combined" "${SERVICES_FILE_COMPAT}"
+else
+    echo "[discovery] WARNING: jq not available, writing unformatted JSON"
+    cp "$temp_combined" "${SERVICES_FILE}"
+    cp "$temp_combined" "${SERVICES_FILE_COMPAT}"
+fi
+
+rm -f "$temp_current" "$temp_combined"
+
+echo "[discovery] ✓ Generated services file with ${#json_services[@]} active services (historical entries retained)"
 echo "[discovery] ✓ Output written to: ${SERVICES_FILE}"
 echo "[discovery] ✓ Compatibility file: ${SERVICES_FILE_COMPAT}"
