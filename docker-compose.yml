@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  homepage:
+    build: .
+    container_name: homelab-homepage
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      # Comma-separated list of subnets to scan
+      - SUBNETS=192.168.1.0/24
+      # Set to 1 to run scan on container start (default: 0)
+      - RUN_SCAN_ON_START=0
+      # Scan interval in seconds (0 = disabled, use manual scan button)
+      - SCAN_INTERVAL=0
+    volumes:
+      # Persistent data directory for services, pins, settings
+      - ./data:/var/www/site/data
