@@ -11,8 +11,10 @@ set -euo pipefail
 # - Accepts space-separated subnets via SUBNETS env (defaults in scan.sh)
 # -------------------------------------------------------------------
 
+# DISABLED: Auto-scanning is now disabled by default - use the web UI "Run Scan" button instead
+# Set RUN_SCAN_ON_START=1 or SCAN_INTERVAL=N (minutes) in docker-compose to enable auto-scan
 SCAN_INTERVAL="${SCAN_INTERVAL:-0}"   # minutes; 0 disables scheduler
-RUN_SCAN_ON_START="${RUN_SCAN_ON_START:-0}"
+RUN_SCAN_ON_START="${RUN_SCAN_ON_START:-0}"  # Set to 1 to run scan on container start
 
 echo "[start] Setting up directories and permissions..."
 

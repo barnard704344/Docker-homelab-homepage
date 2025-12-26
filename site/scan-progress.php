@@ -49,8 +49,8 @@ if ($progress === null) {
     exit;
 }
 
-// Check if progress is stale (older than 5 minutes)
-if (isset($progress['timestamp'])) {
+// Check if progress is stale (older than 5 minutes) - but not if it's completed
+if (isset($progress['timestamp']) && $progress['status'] !== 'completed') {
     $progressTime = strtotime($progress['timestamp']);
     $currentTime = time();
     if ($currentTime - $progressTime > 300) { // 5 minutes

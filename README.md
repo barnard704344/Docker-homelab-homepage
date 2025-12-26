@@ -1,11 +1,11 @@
 # Docker Homelab Homepage
 
-A self-hosted homepage that automatically discovers services on your network using a Docker container (built on Alpine Linux) + nginx + PHP + nmap. Features automatic network scanning, service categorization, port management, and a clean web interface.
+A self-hosted homepage that discovers services on your network using a Docker container (built on Alpine Linux) + nginx + PHP + nmap. Features manual network scanning, service categorization, port management, and a clean web interface with server-side configuration storage for cross-device access.
 
 ## Features
 
-### 🔍 **Automatic Network Discovery**
-- Scans your network subnet using nmap to discover running services
+### 🔍 **Network Discovery**
+- Manual network scan via web UI button - scan when you want, not automatically
 - Configurable port scanning via `ports.map` file - easily add/remove ports
 - Detects 40+ common service ports by default (HTTP, HTTPS, SSH, DNS, media servers, etc.)
 - Real-time service status checking
@@ -18,6 +18,11 @@ A self-hosted homepage that automatically discovers services on your network usi
 - **Port Selection**: Choose which port to use when services run on multiple ports
 - **Service Pinning**: Pin frequently used services to the top
 
+### 💾 **Cross-Device Configuration**
+- All settings stored on the server (not in browser localStorage)
+- Pins, port selections, and categories sync across all devices
+- View your customized homepage from any computer or device
+
 ### 🎨 **Clean Web Interface** 
 - Responsive grid layout with service cards
 - Real-time service status indicators
@@ -26,6 +31,7 @@ A self-hosted homepage that automatically discovers services on your network usi
 
 ### ⚙️ **Advanced Configuration**
 - Persistent category assignments and custom ports
+- Optional auto-scan via environment variables
 
 ## Quick Start
 
@@ -45,10 +51,18 @@ bash setup.sh
 - **Setup Page**: http://your-server-ip/setup.html
 
 ### 3. First-Time Setup
-1. Visit the setup page to configure categories and custom ports
-2. The container automatically scans on startup, or trigger manually with: `docker exec homepage /usr/local/bin/scan.sh`
+1. Visit the homepage and click the **🔍 Run Scan** button to discover services
+2. Visit the setup page to configure categories and custom ports
 3. Assign discovered services to categories
-4. Customize service settings as needed
+4. Pin your favorite services - they'll be available from any device!
+
+### Environment Variables (Optional)
+```bash
+# Set these in docker-compose.yml or docker run command
+SUBNETS="192.168.1.0/24"          # Network(s) to scan (space-separated for multiple)
+RUN_SCAN_ON_START=1               # Set to 1 to run a scan when container starts
+SCAN_INTERVAL=60                  # Auto-scan every N minutes (0 to disable)
+```
 
 ## Configuration
 
@@ -121,12 +135,11 @@ Docker-homelab-homepage/
 **Solutions**:
 ```bash
 # Option 1: Delete service via web interface (automatic cleanup)
-# Go to homepage → Delete service → Trigger new scan
+# Go to homepage → Delete service → Click "Run Scan" to trigger fresh discovery
 
-# Option 2: Manual diagnostic and cleanup
-docker exec homepage /usr/local/bin/dns-diagnostic.sh 192.168.1.79
+# Option 2: Manual cleanup and rescan
 docker exec homepage /usr/local/bin/cleanup-service.sh "old-hostname"
-docker exec homepage /usr/local/bin/refresh-dns.sh
+docker exec homepage /usr/local/bin/scan.sh
 ```
 
 #### Problem: Service not being discovered
@@ -135,9 +148,8 @@ docker exec homepage /usr/local/bin/refresh-dns.sh
 **Solutions**:
 ```bash
 # Add missing port to ports.map or via web interface setup page
-
-# Force fresh scan
-docker exec homepage /usr/local/bin/refresh-dns.sh
+# Then run a new scan from the web UI or manually:
+docker exec homepage /usr/local/bin/scan.sh
 ```
 
 #### Problem: Multiple services have incorrect data
@@ -146,25 +158,10 @@ docker exec homepage /usr/local/bin/refresh-dns.sh
 **Solution**: Nuclear option (clears all service data)
 ```bash
 docker exec homepage /usr/local/bin/cleanup-service.sh all --nuclear
-# Then visit setup page to trigger fresh scan
+# Then click "Run Scan" on homepage or run: docker exec homepage /usr/local/bin/scan.sh
 ```
 
 ### DNS Resolution Issues
-
-#### Problem: Container not seeing DNS updates
-**Cause**: Docker DNS caching or container isolation
-
-**Solutions**:
-```bash
-# Test DNS resolution
-docker exec homepage /usr/local/bin/dns-diagnostic.sh 192.168.1.79
-
-# Clear DNS cache and refresh
-docker exec homepage /usr/local/bin/refresh-dns.sh
-
-# Restart container for complete DNS reset
-docker restart homepage
-```
 
 #### Problem: Services show IP addresses instead of hostnames
 **Cause**: Reverse DNS not configured or not accessible
@@ -175,9 +172,9 @@ docker restart homepage
 ```bash
 docker exec homepage cat /etc/resolv.conf
 ```
-3. Force reverse DNS lookup:
+3. Restart container for complete DNS reset:
 ```bash
-docker exec homepage /usr/local/bin/refresh-dns.sh
+docker restart homepage
 ```
 
 ### Manual Cleanup Commands
@@ -185,9 +182,7 @@ docker exec homepage /usr/local/bin/refresh-dns.sh
 | Issue | Command |
 |-------|---------|
 | One service has wrong data | `docker exec homepage /usr/local/bin/cleanup-service.sh "service-name"` |
-| DNS cache issues | `docker exec homepage /usr/local/bin/refresh-dns.sh` |
 | Start completely fresh | `docker exec homepage /usr/local/bin/cleanup-service.sh all --nuclear` |
-| Troubleshoot DNS for IP | `docker exec homepage /usr/local/bin/dns-diagnostic.sh IP-ADDRESS` |
 | Force new scan | `docker exec homepage /usr/local/bin/scan.sh` |
 
 ### Container Issues
